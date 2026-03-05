@@ -3,41 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>בדיקת טיימר</title>
+    <title>אליאס - משחק</title>
     <style>
         body { 
             font-family: system-ui, sans-serif; 
             text-align: center; 
-            padding-top: 20vh; 
+            padding-top: 5vh; 
             background-color: #f4f4f9; 
             color: #333;
         }
         #timer { 
-            font-size: 5rem; 
+            font-size: 4rem; 
             font-weight: bold; 
-            margin-bottom: 30px; 
+            margin-bottom: 20px; 
             font-variant-numeric: tabular-nums; 
         }
-        button { 
+        #word-display { 
+            font-size: 3.5rem; 
+            margin: 30px 0; 
+            min-height: 80px; 
+            word-break: break-word;
+        }
+        .btn { 
             font-size: 1.5rem; 
-            padding: 15px 40px; 
+            padding: 15px 30px; 
+            margin: 5px; 
             cursor: pointer; 
-            background-color: #007bff; 
-            color: white; 
             border: none; 
             border-radius: 10px; 
+            color: white; 
+            font-weight: bold;
         }
+        #btn-start { background-color: #007bff; }
+        #btn-next { background-color: #28a745; display: none; }
+        #btn-skip { background-color: #dc3545; display: none; }
     </style>
 </head>
 <body>
     <div id="timer">01:00</div>
-    <button id="start-btn">התחל טיימר</button>
+    <div id="word-display">לחץ על התחל לטעינת מילים</div>
+    
+    <div id="controls">
+        <button id="btn-start" class="btn">התחל משחק</button>
+        <button id="btn-next" class="btn">הבא (V)</button>
+        <button id="btn-skip" class="btn">דלג (X)</button>
+    </div>
 
     <script>
+        let words = [];
+        let currentWordIndex = 0;
         let timeLeft = 60;
         let timerInterval;
 
-        document.getElementById('start-btn').addEventListener('click', function() {
+        async function initGame() {
+            try {
+                const response = await fetch('words.json');
+                if (!response.ok) throw new Error("File not found");
+                
+                const data = await response.json();
+                
+                // Flatten the JSON into a single array
+                words = [];
+                for (const category in data) {
+                    for (const difficulty in data[category]) {
+                        words = words.concat(data[category][difficulty]);
+                    }
+                }
+                
+                // Shuffle the array
+                for (let i = words.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [words[i], words[j]] = [words[j], words[i]];
+                }
+                
+                currentWordIndex = 0;
+                document.getElementById('word-display').textContent = words[currentWordIndex];
+                
+                // Swap buttons
+                document.getElementById('btn-start').style.display = 'none';
+                document.getElementById('btn-next').style.display = 'inline-block';
+                document.getElementById('btn-skip').style.display = 'inline-block';
+                
+                startTimer();
+                
+            } catch (error) {
+                document.getElementById('word-display').textContent = "שגיאה בטעינת קובץ המילים";
+                console.error(error);
+            }
+        }
+
+        function startTimer() {
             clearInterval(timerInterval);
             timeLeft = 60;
             document.getElementById('timer').textContent = "01:00";
@@ -51,9 +106,26 @@
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     document.getElementById('timer').textContent = "00:00";
+                    document.getElementById('btn-next').style.display = 'none';
+                    document.getElementById('btn-skip').style.display = 'none';
+                    // The last word remains on the screen automatically
                 }
             }, 1000);
-        });
+        }
+
+        function advanceWord() {
+            currentWordIndex++;
+            if (currentWordIndex < words.length && timeLeft > 0) {
+                document.getElementById('word-display').textContent = words[currentWordIndex];
+            } else if (currentWordIndex >= words.length) {
+                document.getElementById('word-display').textContent = "נגמרו המילים!";
+                clearInterval(timerInterval);
+            }
+        }
+
+        document.getElementById('btn-start').addEventListener('click', initGame);
+        document.getElementById('btn-next').addEventListener('click', advanceWord);
+        document.getElementById('btn-skip').addEventListener('click', advanceWord);
     </script>
 </body>
 </html>
