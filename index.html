@@ -84,6 +84,12 @@
         .score-total { font-weight: bold; font-size: 1.6rem; border-top: 2px solid var(--text-color); margin-top: 15px; padding-top: 15px; }
         .score-stolen { color: var(--danger); font-weight: bold; margin-top: 15px; }
 
+        .word-tag { padding: 5px 12px; border-radius: 15px; font-size: 1rem; font-weight: bold; color: white; display: inline-block; margin-bottom: 5px; }
+        .tag-correct { background-color: var(--success); }
+        .tag-skipped { background-color: var(--secondary); }
+        .tag-stolen { background-color: var(--danger); }
+        .tag-free-skip { background-color: var(--secondary); }
+
         .number-ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
 
         .hidden { display: none !important; }
@@ -157,6 +163,11 @@
                 <span id="score-stolen" class="number-ltr">+0</span>
             </div>
 
+            <div class="settings-card" style="margin-top: 15px; padding: 15px;">
+                <h3 style="margin-top: 0; margin-bottom: 10px; font-size: 1.1rem; color: #495057;">מילים ששוחקו בתור זה:</h3>
+                <div id="round-words-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
+
             <div class="controls" style="margin-top: 20px;">
                 <button id="btn-next-turn" class="btn btn-primary full">התחל תור רגיל</button>
                 <button id="btn-start-red-score" class="btn btn-danger full">התחל סבב אדום</button>
@@ -172,6 +183,7 @@
         let sessionWordsPool = []; // Global pool for the session to prevent repeats
         let currentWord = null;
         let score = { correct: 0, skipped: 0, stolen: 0 };
+        let roundHistory = []; // Tracks words played in the current turn
         
         let timerInterval;
         let timeLeft = 60;
@@ -330,6 +342,7 @@
                 return;
             }
 
+            roundHistory = [];
             isRedRound = false;
             score = { correct: 0, skipped: 0, stolen: 0 };
             currentWord = null;
@@ -372,6 +385,7 @@
                 return;
             }
 
+            roundHistory = [];
             isRedRound = true;
             redCardsPlayed = 0;
             score = { correct: 0, skipped: 0, stolen: 0 };
@@ -501,6 +515,20 @@
                 stolenContainer.classList.add('hidden');
             }
 
+            const wordsListContainer = document.getElementById('round-words-list');
+            wordsListContainer.innerHTML = '';
+            
+            if (roundHistory.length === 0) {
+                wordsListContainer.innerHTML = '<span style="color: var(--secondary); font-size: 0.9rem;">לא שוחקו מילים בתור זה.</span>';
+            } else {
+                roundHistory.forEach(item => {
+                    const span = document.createElement('span');
+                    span.className = `word-tag tag-${item.status}`;
+                    span.textContent = item.word;
+                    wordsListContainer.appendChild(span);
+                });
+            }
+
             const btnEndGame = document.getElementById('btn-end-game');
 
             if (sessionWordsPool.length === 0) {
@@ -531,6 +559,7 @@
         btnCorrect.addEventListener('click', () => {
             if(isPaused || isTimeUp) return;
             score.correct++;
+            if (currentWord) roundHistory.push({ word: currentWord.text, status: 'correct' });
             
             if (isRedRound) {
                 redCardsPlayed++;
@@ -548,6 +577,7 @@
         btnEnemyCorrect.addEventListener('click', () => {
             if (isPaused || isTimeUp || !isRedRound) return;
             score.stolen++;
+            if (currentWord) roundHistory.push({ word: currentWord.text, status: 'stolen' });
             redCardsPlayed++;
             
             if (redCardsPlayed >= RED_ROUND_MAX) {
@@ -565,21 +595,25 @@
                 // Free skip: return to the bottom of the pool
                 if (currentWord) {
                     sessionWordsPool.unshift(currentWord);
+                    roundHistory.push({ word: currentWord.text, status: 'free-skip' });
                 }
                 showNextWord();
             } else {
                 score.skipped++;
+                if (currentWord) roundHistory.push({ word: currentWord.text, status: 'skipped' });
                 showNextWord();
             }
         });
 
         btnStolen.addEventListener('click', () => {
             score.stolen++;
+            if (currentWord) roundHistory.push({ word: currentWord.text, status: 'stolen' });
             showScoreScreen();
         });
 
         btnFinish.addEventListener('click', () => {
             score.correct++;
+            if (currentWord) roundHistory.push({ word: currentWord.text, status: 'correct' });
             showScoreScreen();
         });
         
@@ -588,6 +622,13 @@
         
         document.getElementById('btn-end-game').addEventListener('click', () => {
             switchScreen('menu');
+        });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (sessionWordsPool.length > 0 && !screens.menu.classList.contains('active')) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
         });
 
         // Initialize App
