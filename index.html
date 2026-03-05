@@ -13,10 +13,6 @@
             --danger: #dc3545;
             --warning: #ffc107;
             --secondary: #6c757d;
-            
-            --diff-easy: #198754;
-            --diff-medium: #fd7e14;
-            --diff-hard: #dc3545;
         }
 
         * { box-sizing: border-box; font-family: system-ui, sans-serif; touch-action: manipulation; }
@@ -88,12 +84,9 @@
         .score-total { font-weight: bold; font-size: 1.6rem; border-top: 2px solid var(--text-color); margin-top: 15px; padding-top: 15px; }
         .score-stolen { color: var(--danger); font-weight: bold; margin-top: 15px; }
 
+        .number-ltr { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+
         .hidden { display: none !important; }
-        
-        /* Difficulty Colors */
-        .color-easy { color: var(--diff-easy); }
-        .color-medium { color: var(--diff-medium); }
-        .color-hard { color: var(--diff-hard); }
     </style>
 </head>
 <body>
@@ -131,7 +124,6 @@
             
             <div class="word-container">
                 <div id="current-word">טוען...</div>
-                <div id="word-difficulty"></div>
             </div>
             
             <div id="game-controls" class="controls">
@@ -148,21 +140,21 @@
             <h1>תוצאות תור</h1>
             
             <div class="score-row">
-                <span>מילים שנוחשו (+1):</span>
-                <span id="score-correct" class="color-easy">0</span>
+                <span>מילים שנוחשו (<span class="number-ltr">+1</span>):</span>
+                <span id="score-correct" class="number-ltr">0</span>
             </div>
             <div class="score-row">
-                <span>מילים שדולגו (-1):</span>
-                <span id="score-skipped" class="color-hard">0</span>
+                <span>מילים שדולגו (<span class="number-ltr">-1</span>):</span>
+                <span id="score-skipped" class="number-ltr">0</span>
             </div>
             <div class="score-row score-total">
                 <span>סך הכל לתור:</span>
-                <span id="score-total">0</span>
+                <span id="score-total" class="number-ltr">0</span>
             </div>
             
             <div class="score-row score-stolen hidden" id="stolen-container">
                 <span>נקודות ליריב (נחטף):</span>
-                <span id="score-stolen">+0</span>
+                <span id="score-stolen" class="number-ltr">+0</span>
             </div>
 
             <div class="controls" style="margin-top: 20px;">
@@ -194,12 +186,6 @@
         // Sound Effects
         const timeUpSound = new Audio('timeup.mp3');
 
-        const difficultyColors = {
-            "קל": "color-easy",
-            "בינוני": "color-medium",
-            "קשה": "color-hard"
-        };
-
         // DOM Elements
         const screens = {
             menu: document.getElementById('menu-screen'),
@@ -207,7 +193,6 @@
             score: document.getElementById('score-screen')
         };
         const wordDisplay = document.getElementById('current-word');
-        const difficultyDisplay = document.getElementById('word-difficulty');
         const timerDisplay = document.getElementById('timer');
         const redRoundCounter = document.getElementById('red-round-counter');
         const btnPause = document.getElementById('btn-pause');
@@ -370,7 +355,6 @@
             
             btnPause.classList.remove('hidden');
             btnPause.textContent = 'השהה';
-            wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
             
             requestWakeLock();
             updateTimerDisplay();
@@ -417,7 +401,6 @@
             
             btnPause.classList.remove('hidden');
             btnPause.textContent = 'השהה';
-            wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
             
             requestWakeLock();
             switchScreen('game');
@@ -430,9 +413,8 @@
 
         function showNextWord() {
             if (sessionWordsPool.length === 0) {
+                isTimeUp = true; // Prevents button clicks during the 1.5s transition
                 wordDisplay.textContent = "נגמרו המילים במאגר!";
-                wordDisplay.className = '';
-                difficultyDisplay.textContent = "";
                 clearInterval(timerInterval);
                 setTimeout(showScoreScreen, 1500);
                 return;
@@ -442,8 +424,6 @@
             currentWord = sessionWordsPool.pop();
             
             wordDisplay.textContent = currentWord.text;
-            difficultyDisplay.textContent = `(${currentWord.difficulty})`;
-            wordDisplay.className = difficultyColors[currentWord.difficulty] || '';
         }
 
         function updateTimer() {
@@ -492,10 +472,8 @@
             
             if (isPaused) {
                 wordDisplay.style.visibility = 'hidden';
-                difficultyDisplay.style.visibility = 'hidden';
             } else {
                 wordDisplay.style.visibility = 'visible';
-                difficultyDisplay.style.visibility = 'visible';
             }
         }
 
