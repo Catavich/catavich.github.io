@@ -1,42 +1,33 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>אליאס</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>אליאס - משחק ניחוש מילים</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <div id="menu-screen" class="screen active">
-            <h1>אליאס</h1>
-            <button id="btn-start" class="btn primary">התחל משחק</button>
-        </div>
-
-        <div id="game-screen" class="screen">
-            <div class="header">
-                <div id="timer">01:00</div>
-                <button id="btn-pause" class="btn small">השהה</button>
-            </div>
-            <div class="word-container">
-                <h2 id="current-word">טוען מילים...</h2>
-            </div>
-            <div id="game-controls" class="controls">
-                <button id="btn-correct" class="btn success">הבא (V)</button>
-                <button id="btn-skip" class="btn danger">דלג (X)</button>
-                <button id="btn-stolen" class="btn warning hidden">נחטף!</button>
-            </div>
-        </div>
-
-        <div id="score-screen" class="screen">
-            <h2>תוצאות</h2>
-            <p>מילים שנוחשו: <span id="score-correct">0</span></p>
-            <p>מילים שדולגו: <span id="score-skipped">0</span></p>
-            <p>סך הכל נקודות לקבוצה: <span id="score-total">0</span></p>
-            <p class="stolen-text">נקודות לקבוצה היריבה (נחטף): <span id="score-stolen">0</span></p>
-            <button id="btn-restart" class="btn primary">משחק חדש</button>
-        </div>
+  <main class="container">
+    <h1 class="game-title">אליאס</h1>
+    <div class="game-controls">
+      <button id="start-btn" class="primary-btn">התחל משחק</button>
+      <div class="timer-container">
+        <span id="timer">01:00</span>
+        <button id="pause-btn" class="pause-btn" title="השהה">⏸️</button>
+      </div>
     </div>
-    <script src="app.js"></script>
+    <div id="word-container" class="word-container"></div>
+    <div id="gameplay-buttons" class="gameplay-buttons">
+      <button id="next-btn" class="action-btn">הבא</button>
+      <button id="skip-btn" class="action-btn">דלג</button>
+    </div>
+    <button id="stolen-btn" class="stolen-btn" style="display:none;">נחטף</button>
+    <section id="score-summary" class="score-summary" style="display:none;">
+      <h2>סיכום נקודות</h2>
+      <div id="score-details"></div>
+      <button id="restart-btn" class="primary-btn">התחל מחדש</button>
+    </section>
+  </main>
+  <script src="app.js"></script>
 </body>
 </html>
