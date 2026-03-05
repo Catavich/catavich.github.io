@@ -1,33 +1,38 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>אליאס - משחק ניחוש מילים</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בדיקת קובץ JSON</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #222; color: #0f0; }
+        #output { white-space: pre-wrap; word-wrap: break-word; border: 1px solid #0f0; padding: 10px; }
+    </style>
 </head>
 <body>
-  <main class="container">
-    <h1 class="game-title">אליאס</h1>
-    <div class="game-controls">
-      <button id="start-btn" class="primary-btn">התחל משחק</button>
-      <div class="timer-container">
-        <span id="timer">01:00</span>
-        <button id="pause-btn" class="pause-btn" title="השהה">⏸️</button>
-      </div>
-    </div>
-    <div id="word-container" class="word-container"></div>
-    <div id="gameplay-buttons" class="gameplay-buttons">
-      <button id="next-btn" class="action-btn">הבא</button>
-      <button id="skip-btn" class="action-btn">דלג</button>
-    </div>
-    <button id="stolen-btn" class="stolen-btn" style="display:none;">נחטף</button>
-    <section id="score-summary" class="score-summary" style="display:none;">
-      <h2>סיכום נקודות</h2>
-      <div id="score-details"></div>
-      <button id="restart-btn" class="primary-btn">התחל מחדש</button>
-    </section>
-  </main>
-  <script src="app.js"></script>
+    <h1>אבחון טעינת נתונים</h1>
+    <div id="output">טוען נתונים...</div>
+
+    <script>
+        async function testFetch() {
+            const output = document.getElementById('output');
+            try {
+                // This is the line that fails on your hard drive but works on GitHub
+                const response = await fetch('words.json');
+                
+                if (!response.ok) {
+                    throw new Error(`שגיאת שרת: ${response.status}`);
+                }
+
+                const data = await response.json();
+                output.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                output.style.color = 'red';
+                output.textContent = "שגיאה בטעינת הקובץ: " + error.message;
+            }
+        }
+
+        testFetch();
+    </script>
 </body>
 </html>
