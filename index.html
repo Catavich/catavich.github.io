@@ -25,10 +25,6 @@
             margin: 0; 
             padding: 0; 
             background-color: var(--bg-color); 
-            background-image: url('image_4c1bb0.jpg');
-            background-size: cover;
-            background-attachment: fixed;
-            background-position: center;
             color: var(--text-color); 
             overflow-x: hidden; 
         }
@@ -47,10 +43,9 @@
             flex-direction: column; 
             flex-grow: 1; 
             padding: 20px; 
-            background: rgba(255, 255, 255, 0.95);
+            background: white;
             border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             margin-bottom: 10px;
         }
         .screen.active { display: flex; }
@@ -183,6 +178,7 @@
         let timeLeft = 60;
         let isPaused = false;
         let isTimeUp = false;
+        let wakeLock = null;
 
         // Sound Effects
         const timeUpSound = new Audio('timeup.mp3');
@@ -208,6 +204,30 @@
         const btnStolen = document.getElementById('btn-stolen');
         const btnFinish = document.getElementById('btn-finish');
         const btnNextTurn = document.getElementById('btn-next-turn');
+
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log(`Wake Lock error: ${err.message}`);
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                });
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (wakeLock !== null && document.visibilityState === 'visible' && !isPaused && !isTimeUp) {
+                requestWakeLock();
+            }
+        });
 
         async function loadData() {
             try {
@@ -322,6 +342,7 @@
             btnPause.textContent = 'השהה';
             wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
             
+            requestWakeLock();
             updateTimerDisplay();
             switchScreen('game');
             showNextWord();
@@ -402,6 +423,7 @@
         }
 
         function showScoreScreen() {
+            releaseWakeLock();
             switchScreen('score');
             
             document.getElementById('score-correct').textContent = score.correct;
@@ -451,7 +473,10 @@
             showScoreScreen();
         });
 
-        btnFinish.addEventListener('click', showScoreScreen);
+        btnFinish.addEventListener('click', () => {
+            score.correct++;
+            showScoreScreen();
+        });
         
         btnNextTurn.addEventListener('click', startTurn);
         
