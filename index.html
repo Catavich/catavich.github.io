@@ -20,48 +20,76 @@
         }
 
         * { box-sizing: border-box; font-family: system-ui, sans-serif; touch-action: manipulation; }
-        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
-        #app { max-width: 600px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background-color: var(--bg-color); 
+            background-image: url('image_4c1bb0.jpg');
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            color: var(--text-color); 
+            overflow-x: hidden; 
+        }
 
-        .screen { display: none; flex-direction: column; flex-grow: 1; padding: 20px; }
+        #app { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            padding: 10px;
+        }
+
+        .screen { 
+            display: none; 
+            flex-direction: column; 
+            flex-grow: 1; 
+            padding: 20px; 
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            backdrop-filter: blur(4px);
+            margin-bottom: 10px;
+        }
         .screen.active { display: flex; }
 
         /* Typography */
-        h1 { font-size: 2.5rem; text-align: center; margin-bottom: 10px; }
-        h2 { font-size: 1.5rem; border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-top: 0; }
+        h1 { font-size: 2.5rem; text-align: center; margin-top: 10px; margin-bottom: 20px; }
+        h2 { font-size: 1.3rem; border-bottom: 2px solid #dee2e6; padding-bottom: 8px; margin-top: 0; }
         
         /* Settings / Menu */
-        .settings-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .settings-card { background: rgba(255,255,255,0.8); border-radius: 12px; padding: 15px; border: 1px solid #dee2e6; margin-bottom: 20px; }
         .settings-group { margin-bottom: 15px; }
-        .settings-group h3 { font-size: 1.2rem; margin: 0 0 10px 0; }
+        .settings-group h3 { font-size: 1.1rem; margin: 0 0 10px 0; color: #495057; }
         .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; cursor: pointer; }
-        .checkbox-label input { width: 20px; height: 20px; cursor: pointer; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 1rem; cursor: pointer; }
+        .checkbox-label input { width: 18px; height: 18px; cursor: pointer; }
 
         /* Game Screen */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         #timer { font-size: 3rem; font-weight: bold; font-variant-numeric: tabular-nums; }
         
-        .word-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        #current-word { font-size: 4rem; margin: 0; word-break: break-word; line-height: 1.2; font-weight: 800; transition: color 0.3s; }
+        .word-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 200px; }
+        #current-word { font-size: 3.5rem; margin: 0; word-break: break-word; line-height: 1.2; font-weight: 800; transition: color 0.3s; }
         #word-difficulty { font-size: 1.2rem; margin-top: 10px; font-weight: bold; }
 
         /* Controls */
-        .controls { display: flex; gap: 15px; justify-content: center; padding-bottom: 20px; flex-wrap: wrap; }
+        .controls { display: flex; gap: 15px; justify-content: center; padding-bottom: 10px; flex-wrap: wrap; }
         .btn { border: none; border-radius: 12px; padding: 15px; font-size: 1.5rem; cursor: pointer; font-weight: bold; flex: 1; min-width: 120px; color: white; transition: opacity 0.2s; }
         .btn:active { opacity: 0.8; }
         .btn.small { padding: 8px 15px; font-size: 1.1rem; min-width: auto; flex: none; background-color: var(--secondary); border-radius: 8px; }
-        .btn.full { width: 100%; flex: none; margin-top: 20px; }
+        .btn.full { width: 100%; flex: none; margin-top: 10px; }
 
         .btn-primary { background-color: var(--primary); }
         .btn-success { background-color: var(--success); }
         .btn-danger { background-color: var(--danger); }
-        .btn-warning { background-color: var(--warning); color: black; }
 
         /* Score Screen */
-        .score-row { display: flex; justify-content: space-between; font-size: 1.3rem; margin-bottom: 10px; padding: 10px; background: white; border-radius: 8px; }
+        .score-row { display: flex; justify-content: space-between; font-size: 1.3rem; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.8); border: 1px solid #dee2e6; border-radius: 8px; }
         .score-total { font-weight: bold; font-size: 1.6rem; border-top: 2px solid var(--text-color); margin-top: 15px; padding-top: 15px; }
-        .score-stolen { color: var(--danger); font-weight: bold; margin-top: 20px; }
+        .score-stolen { color: var(--danger); font-weight: bold; margin-top: 15px; }
 
         .hidden { display: none !important; }
         
@@ -81,21 +109,17 @@
                 <h2>הגדרות משחק</h2>
                 
                 <div class="settings-group">
-                    <h3>קטגוריות</h3>
-                    <div id="categories-container" class="checkbox-grid">
-                        <!-- Populated by JS -->
-                    </div>
+                    <h3>קטגוריות מובנות</h3>
+                    <div id="categories-container" class="checkbox-grid"></div>
                 </div>
 
                 <div class="settings-group">
-                    <h3>רמות קושי</h3>
-                    <div id="difficulties-container" class="checkbox-grid">
-                        <!-- Populated by JS -->
-                    </div>
+                    <h3>רמות קושי (לקטגוריות מובנות)</h3>
+                    <div id="difficulties-container" class="checkbox-grid"></div>
                 </div>
             </div>
 
-            <button id="btn-start" class="btn btn-primary full">התחל משחק</button>
+            <button id="btn-start" class="btn btn-primary full">התחל משחק חדש</button>
         </div>
 
         <!-- GAME SCREEN -->
@@ -111,10 +135,10 @@
             </div>
             
             <div id="game-controls" class="controls">
-                <button id="btn-correct" class="btn btn-success">הבא (V)</button>
-                <button id="btn-skip" class="btn btn-danger">דלג (X)</button>
-                <button id="btn-stolen" class="btn btn-warning full hidden">נחטף! (+1 ליריב)</button>
-                <button id="btn-finish" class="btn btn-primary full hidden">הזמן נגמר (סיים תור)</button>
+                <button id="btn-correct" class="btn btn-success">הבא</button>
+                <button id="btn-skip" class="btn btn-danger">דלג</button>
+                <button id="btn-stolen" class="btn btn-danger full hidden">נחטף! (+1 ליריב)</button>
+                <button id="btn-finish" class="btn btn-success full hidden">סיים</button>
             </div>
         </div>
 
@@ -131,37 +155,43 @@
                 <span id="score-skipped" class="color-hard">0</span>
             </div>
             <div class="score-row score-total">
-                <span>סך הכל לקבוצה:</span>
+                <span>סך הכל לתור:</span>
                 <span id="score-total">0</span>
             </div>
             
             <div class="score-row score-stolen hidden" id="stolen-container">
-                <span>נקודות לקבוצה היריבה (נחטף):</span>
+                <span>נקודות ליריב (נחטף):</span>
                 <span id="score-stolen">+0</span>
             </div>
 
-            <button id="btn-restart" class="btn btn-primary full">חזור לתפריט</button>
+            <div class="controls" style="margin-top: 20px;">
+                <button id="btn-next-turn" class="btn btn-primary full">התחל תור הבא</button>
+                <button id="btn-end-game" class="btn btn-danger full" style="background-color: var(--secondary);">סיים משחק (חזור לתפריט)</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Data Structure
+        // Data Structures
         let rawData = {};
+        
+        let sessionWordsPool = []; // Global pool for the session to prevent repeats
+        let currentWord = null;
+        let score = { correct: 0, skipped: 0, stolen: 0 };
+        
+        let timerInterval;
+        let timeLeft = 60;
+        let isPaused = false;
+        let isTimeUp = false;
+
+        // Sound Effects
+        const timeUpSound = new Audio('timeup.mp3');
 
         const difficultyColors = {
             "קל": "color-easy",
             "בינוני": "color-medium",
             "קשה": "color-hard"
         };
-
-        // State variables
-        let words = [];
-        let currentWordIndex = 0;
-        let score = { correct: 0, skipped: 0, stolen: 0 };
-        let timerInterval;
-        let timeLeft = 60;
-        let isPaused = false;
-        let isTimeUp = false;
 
         // DOM Elements
         const screens = {
@@ -177,8 +207,8 @@
         const btnSkip = document.getElementById('btn-skip');
         const btnStolen = document.getElementById('btn-stolen');
         const btnFinish = document.getElementById('btn-finish');
+        const btnNextTurn = document.getElementById('btn-next-turn');
 
-        // Initialization
         async function loadData() {
             try {
                 const response = await fetch('words.json');
@@ -187,7 +217,7 @@
             } catch (error) {
                 console.warn("Could not load words.json, using fallback data.");
                 rawData = {
-                    "חיות (דוגמה מוקטנת)": {
+                    "חיות (דוגמה)": {
                         "קל": ["כלב", "חתול", "אריה"],
                         "בינוני": ["קרנף", "ינשוף", "תמנון"],
                         "קשה": ["קפיברה", "שנבוב", "פנגולין"]
@@ -206,6 +236,7 @@
             });
 
             const catContainer = document.getElementById('categories-container');
+            catContainer.innerHTML = '';
             categories.forEach(cat => {
                 catContainer.innerHTML += `
                     <label class="checkbox-label">
@@ -216,6 +247,7 @@
             });
 
             const diffContainer = document.getElementById('difficulties-container');
+            diffContainer.innerHTML = '';
             difficulties.forEach(diff => {
                 diffContainer.innerHTML += `
                     <label class="checkbox-label">
@@ -231,51 +263,61 @@
             screens[screenName].classList.add('active');
         }
 
-        function buildWordArray() {
+        // Creates the session pool. Words are removed from here as they are played.
+        function buildSessionPool() {
             const selectedCats = Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(cb => cb.value);
             const selectedDiffs = Array.from(document.querySelectorAll('.diff-checkbox:checked')).map(cb => cb.value);
             
-            words = [];
+            sessionWordsPool = [];
             
+            // Add standard words
             selectedCats.forEach(cat => {
                 selectedDiffs.forEach(diff => {
                     if (rawData[cat] && rawData[cat][diff]) {
                         rawData[cat][diff].forEach(text => {
-                            words.push({ text, category: cat, difficulty: diff });
+                            sessionWordsPool.push({ text, category: cat, difficulty: diff });
                         });
                     }
                 });
             });
-        }
 
-        function shuffleWords() {
-            for (let i = words.length - 1; i > 0; i--) {
+            // Shuffle
+            for (let i = sessionWordsPool.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
-                [words[i], words[j]] = [words[j], words[i]];
+                [sessionWordsPool[i], sessionWordsPool[j]] = [sessionWordsPool[j], sessionWordsPool[i]];
             }
         }
 
-        // Game Logic
-        function startGame() {
-            buildWordArray();
+        // Starts a brand new game (resets the session pool)
+        function startNewGame() {
+            buildSessionPool();
             
-            if (words.length === 0) {
-                alert("אנא בחר לפחות קטגוריה אחת ורמת קושי אחת המכילות מילים.");
+            if (sessionWordsPool.length === 0) {
+                alert("אנא בחר לפחות קטגוריה אחת המכילה מילים.");
+                return;
+            }
+            startTurn();
+        }
+
+        // Starts a single 60s turn using the existing session pool
+        function startTurn() {
+            if (sessionWordsPool.length === 0) {
+                alert("נגמרו המילים במאגר! חזור לתפריט להתחיל משחק חדש.");
+                switchScreen('menu');
                 return;
             }
 
-            shuffleWords();
             score = { correct: 0, skipped: 0, stolen: 0 };
-            currentWordIndex = 0;
+            currentWord = null;
             timeLeft = 60;
             isPaused = false;
             isTimeUp = false;
 
-            // Reset UI
             btnCorrect.classList.remove('hidden');
             btnSkip.classList.remove('hidden');
             btnStolen.classList.add('hidden');
             btnFinish.classList.add('hidden');
+            
             btnPause.classList.remove('hidden');
             btnPause.textContent = 'השהה';
             wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
@@ -289,8 +331,8 @@
         }
 
         function showNextWord() {
-            if (currentWordIndex >= words.length) {
-                wordDisplay.textContent = "נגמרו המילים!";
+            if (sessionWordsPool.length === 0) {
+                wordDisplay.textContent = "נגמרו המילים במאגר!";
                 wordDisplay.className = '';
                 difficultyDisplay.textContent = "";
                 clearInterval(timerInterval);
@@ -298,13 +340,12 @@
                 return;
             }
 
-            const current = words[currentWordIndex];
-            wordDisplay.textContent = current.text;
-            difficultyDisplay.textContent = `(${current.difficulty})`;
+            // Pop word from the session pool to ensure it never repeats
+            currentWord = sessionWordsPool.pop();
             
-            // Apply color based on difficulty
-            wordDisplay.className = difficultyColors[current.difficulty] || '';
-            currentWordIndex++;
+            wordDisplay.textContent = currentWord.text;
+            difficultyDisplay.textContent = `(${currentWord.difficulty})`;
+            wordDisplay.className = difficultyColors[currentWord.difficulty] || '';
         }
 
         function updateTimer() {
@@ -334,6 +375,9 @@
             isTimeUp = true;
             clearInterval(timerInterval);
             timerDisplay.textContent = "00:00";
+            
+            // Play sound effect
+            timeUpSound.play().catch(err => console.log("Audio playback prevented:", err));
             
             btnPause.classList.add('hidden');
             btnCorrect.classList.add('hidden');
@@ -373,11 +417,21 @@
             } else {
                 stolenContainer.classList.add('hidden');
             }
+
+            if (sessionWordsPool.length === 0) {
+                btnNextTurn.textContent = "נגמרו המילים במאגר! (חובה לסיים משחק)";
+                btnNextTurn.disabled = true;
+                btnNextTurn.style.backgroundColor = 'var(--secondary)';
+            } else {
+                btnNextTurn.textContent = "התחל תור הבא";
+                btnNextTurn.disabled = false;
+                btnNextTurn.style.backgroundColor = 'var(--primary)';
+            }
         }
 
         // Event Listeners
-        document.getElementById('btn-start').addEventListener('click', startGame);
-        document.getElementById('btn-restart').addEventListener('click', () => switchScreen('menu'));
+        document.getElementById('btn-start').addEventListener('click', startNewGame);
+        
         btnPause.addEventListener('click', togglePause);
         
         btnCorrect.addEventListener('click', () => {
@@ -398,8 +452,14 @@
         });
 
         btnFinish.addEventListener('click', showScoreScreen);
+        
+        btnNextTurn.addEventListener('click', startTurn);
+        
+        document.getElementById('btn-end-game').addEventListener('click', () => {
+            switchScreen('menu');
+        });
 
-        // Run
+        // Initialize App
         loadData();
     </script>
 </body>
