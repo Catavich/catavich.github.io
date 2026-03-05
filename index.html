@@ -80,6 +80,8 @@
         .btn-primary { background-color: var(--primary); }
         .btn-success { background-color: var(--success); }
         .btn-danger { background-color: var(--danger); }
+        .btn-warning { background-color: var(--warning); color: black; }
+        .btn-secondary { background-color: var(--secondary); }
 
         /* Score Screen */
         .score-row { display: flex; justify-content: space-between; font-size: 1.3rem; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.8); border: 1px solid #dee2e6; border-radius: 8px; }
@@ -114,7 +116,8 @@
                 </div>
             </div>
 
-            <button id="btn-start" class="btn btn-primary full">התחל משחק חדש</button>
+            <button id="btn-start" class="btn btn-primary full">התחל משחק (תור רגיל)</button>
+            <button id="btn-start-red-menu" class="btn btn-danger full" style="margin-top: 10px;">התחל משחק (סבב אדום)</button>
         </div>
 
         <!-- GAME SCREEN -->
@@ -124,6 +127,8 @@
                 <button id="btn-pause" class="btn small">השהה</button>
             </div>
             
+            <div id="red-round-counter" class="hidden" style="font-size: 1.5rem; font-weight: bold; text-align: center; color: var(--danger); margin-bottom: 10px;">כרטיס 0 מתוך 5</div>
+            
             <div class="word-container">
                 <div id="current-word">טוען...</div>
                 <div id="word-difficulty"></div>
@@ -131,6 +136,7 @@
             
             <div id="game-controls" class="controls">
                 <button id="btn-correct" class="btn btn-success">הבא</button>
+                <button id="btn-enemy-correct" class="btn btn-warning hidden">קבוצה יריבה</button>
                 <button id="btn-skip" class="btn btn-danger">דלג</button>
                 <button id="btn-stolen" class="btn btn-danger full hidden">נחטף! (+1 ליריב)</button>
                 <button id="btn-finish" class="btn btn-success full hidden">סיים</button>
@@ -160,8 +166,9 @@
             </div>
 
             <div class="controls" style="margin-top: 20px;">
-                <button id="btn-next-turn" class="btn btn-primary full">התחל תור הבא</button>
-                <button id="btn-end-game" class="btn btn-danger full" style="background-color: var(--secondary);">סיים משחק (חזור לתפריט)</button>
+                <button id="btn-next-turn" class="btn btn-primary full">התחל תור רגיל</button>
+                <button id="btn-start-red-score" class="btn btn-danger full">התחל סבב אדום</button>
+                <button id="btn-end-game" class="btn btn-secondary full">סיים משחק (חזור לתפריט)</button>
             </div>
         </div>
     </div>
@@ -179,6 +186,10 @@
         let isPaused = false;
         let isTimeUp = false;
         let wakeLock = null;
+        
+        let isRedRound = false;
+        let redCardsPlayed = 0;
+        const RED_ROUND_MAX = 5;
 
         // Sound Effects
         const timeUpSound = new Audio('timeup.mp3');
@@ -198,12 +209,15 @@
         const wordDisplay = document.getElementById('current-word');
         const difficultyDisplay = document.getElementById('word-difficulty');
         const timerDisplay = document.getElementById('timer');
+        const redRoundCounter = document.getElementById('red-round-counter');
         const btnPause = document.getElementById('btn-pause');
         const btnCorrect = document.getElementById('btn-correct');
+        const btnEnemyCorrect = document.getElementById('btn-enemy-correct');
         const btnSkip = document.getElementById('btn-skip');
         const btnStolen = document.getElementById('btn-stolen');
         const btnFinish = document.getElementById('btn-finish');
         const btnNextTurn = document.getElementById('btn-next-turn');
+        const btnStartRedScore = document.getElementById('btn-start-red-score');
 
         async function requestWakeLock() {
             try {
@@ -309,14 +323,18 @@
         }
 
         // Starts a brand new game (resets the session pool)
-        function startNewGame() {
+        function startNewGame(redRound = false) {
             buildSessionPool();
             
             if (sessionWordsPool.length === 0) {
                 alert("אנא בחר לפחות קטגוריה אחת המכילה מילים.");
                 return;
             }
-            startTurn();
+            if (redRound) {
+                startRedRound();
+            } else {
+                startTurn();
+            }
         }
 
         // Starts a single 60s turn using the existing session pool
@@ -327,14 +345,26 @@
                 return;
             }
 
+            isRedRound = false;
             score = { correct: 0, skipped: 0, stolen: 0 };
             currentWord = null;
             timeLeft = 60;
             isPaused = false;
             isTimeUp = false;
 
+            redRoundCounter.classList.add('hidden');
+            timerDisplay.style.color = "inherit";
+
             btnCorrect.classList.remove('hidden');
+            btnCorrect.textContent = "הבא";
+            
+            btnEnemyCorrect.classList.add('hidden');
+            
             btnSkip.classList.remove('hidden');
+            btnSkip.classList.remove('btn-secondary');
+            btnSkip.classList.add('btn-danger');
+            btnSkip.textContent = "דלג";
+
             btnStolen.classList.add('hidden');
             btnFinish.classList.add('hidden');
             
@@ -349,6 +379,53 @@
             
             clearInterval(timerInterval);
             timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function startRedRound() {
+            if (sessionWordsPool.length === 0) {
+                alert("נגמרו המילים במאגר! חזור לתפריט להתחיל משחק חדש.");
+                switchScreen('menu');
+                return;
+            }
+
+            isRedRound = true;
+            redCardsPlayed = 0;
+            score = { correct: 0, skipped: 0, stolen: 0 };
+            currentWord = null;
+            isPaused = false;
+            isTimeUp = false;
+            clearInterval(timerInterval);
+
+            timerDisplay.textContent = "סבב אדום";
+            timerDisplay.style.color = "var(--danger)";
+            
+            redRoundCounter.classList.remove('hidden');
+            updateRedRoundCounterDisplay();
+
+            btnCorrect.classList.remove('hidden');
+            btnCorrect.textContent = "קבוצה משחקת";
+            
+            btnEnemyCorrect.classList.remove('hidden');
+            
+            btnSkip.classList.remove('hidden');
+            btnSkip.classList.remove('btn-danger');
+            btnSkip.classList.add('btn-secondary');
+            btnSkip.textContent = "דלג (חינם)";
+
+            btnStolen.classList.add('hidden');
+            btnFinish.classList.add('hidden');
+            
+            btnPause.classList.remove('hidden');
+            btnPause.textContent = 'השהה';
+            wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
+            
+            requestWakeLock();
+            switchScreen('game');
+            showNextWord();
+        }
+
+        function updateRedRoundCounterDisplay() {
+            redRoundCounter.textContent = `כרטיס ${redCardsPlayed + 1} מתוך ${RED_ROUND_MAX}`;
         }
 
         function showNextWord() {
@@ -426,6 +503,12 @@
             releaseWakeLock();
             switchScreen('score');
             
+            if (isRedRound) {
+                document.querySelector('#score-screen h1').textContent = "תוצאות סבב אדום";
+            } else {
+                document.querySelector('#score-screen h1').textContent = "תוצאות תור";
+            }
+            
             document.getElementById('score-correct').textContent = score.correct;
             document.getElementById('score-skipped').textContent = score.skipped;
             
@@ -440,32 +523,76 @@
                 stolenContainer.classList.add('hidden');
             }
 
+            const btnEndGame = document.getElementById('btn-end-game');
+
             if (sessionWordsPool.length === 0) {
-                btnNextTurn.textContent = "נגמרו המילים במאגר! (חובה לסיים משחק)";
-                btnNextTurn.disabled = true;
-                btnNextTurn.style.backgroundColor = 'var(--secondary)';
+                btnNextTurn.classList.add('hidden');
+                btnStartRedScore.classList.add('hidden');
+                
+                btnEndGame.textContent = "נגמרו המילים! (חזור לתפריט)";
+                btnEndGame.classList.remove('btn-secondary');
+                btnEndGame.classList.add('btn-primary');
             } else {
-                btnNextTurn.textContent = "התחל תור הבא";
-                btnNextTurn.disabled = false;
-                btnNextTurn.style.backgroundColor = 'var(--primary)';
+                btnNextTurn.classList.remove('hidden');
+                btnNextTurn.textContent = "התחל תור רגיל";
+                
+                btnStartRedScore.classList.remove('hidden');
+                
+                btnEndGame.textContent = "סיים משחק (חזור לתפריט)";
+                btnEndGame.classList.remove('btn-primary');
+                btnEndGame.classList.add('btn-secondary');
             }
         }
 
         // Event Listeners
-        document.getElementById('btn-start').addEventListener('click', startNewGame);
+        document.getElementById('btn-start').addEventListener('click', () => startNewGame(false));
+        document.getElementById('btn-start-red-menu').addEventListener('click', () => startNewGame(true));
         
         btnPause.addEventListener('click', togglePause);
         
         btnCorrect.addEventListener('click', () => {
             if(isPaused || isTimeUp) return;
             score.correct++;
-            showNextWord();
+            
+            if (isRedRound) {
+                redCardsPlayed++;
+                if (redCardsPlayed >= RED_ROUND_MAX) {
+                    showScoreScreen();
+                } else {
+                    updateRedRoundCounterDisplay();
+                    showNextWord();
+                }
+            } else {
+                showNextWord();
+            }
+        });
+
+        btnEnemyCorrect.addEventListener('click', () => {
+            if (isPaused || isTimeUp || !isRedRound) return;
+            score.stolen++;
+            redCardsPlayed++;
+            
+            if (redCardsPlayed >= RED_ROUND_MAX) {
+                showScoreScreen();
+            } else {
+                updateRedRoundCounterDisplay();
+                showNextWord();
+            }
         });
         
         btnSkip.addEventListener('click', () => {
             if(isPaused || isTimeUp) return;
-            score.skipped++;
-            showNextWord();
+            
+            if (isRedRound) {
+                // Free skip: return to the bottom of the pool
+                if (currentWord) {
+                    sessionWordsPool.unshift(currentWord);
+                }
+                showNextWord();
+            } else {
+                score.skipped++;
+                showNextWord();
+            }
         });
 
         btnStolen.addEventListener('click', () => {
@@ -479,6 +606,7 @@
         });
         
         btnNextTurn.addEventListener('click', startTurn);
+        btnStartRedScore.addEventListener('click', startRedRound);
         
         document.getElementById('btn-end-game').addEventListener('click', () => {
             switchScreen('menu');
