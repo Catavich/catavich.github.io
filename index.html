@@ -2,130 +2,397 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>אליאס - משחק</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>אליאס</title>
     <style>
-        body { 
-            font-family: system-ui, sans-serif; 
-            text-align: center; 
-            padding-top: 5vh; 
-            background-color: #f4f4f9; 
-            color: #333;
+        :root {
+            --bg-color: #f8f9fa;
+            --text-color: #212529;
+            --primary: #0d6efd;
+            --success: #198754;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --secondary: #6c757d;
+            
+            --diff-easy: #198754;
+            --diff-medium: #fd7e14;
+            --diff-hard: #dc3545;
         }
-        #timer { 
-            font-size: 4rem; 
-            font-weight: bold; 
-            margin-bottom: 20px; 
-            font-variant-numeric: tabular-nums; 
-        }
-        #word-display { 
-            font-size: 3.5rem; 
-            margin: 30px 0; 
-            min-height: 80px; 
-            word-break: break-word;
-        }
-        .btn { 
-            font-size: 1.5rem; 
-            padding: 15px 30px; 
-            margin: 5px; 
-            cursor: pointer; 
-            border: none; 
-            border-radius: 10px; 
-            color: white; 
-            font-weight: bold;
-        }
-        #btn-start { background-color: #007bff; }
-        #btn-next { background-color: #28a745; display: none; }
-        #btn-skip { background-color: #dc3545; display: none; }
+
+        * { box-sizing: border-box; font-family: system-ui, sans-serif; touch-action: manipulation; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color); overflow-x: hidden; }
+        #app { max-width: 600px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+        .screen { display: none; flex-direction: column; flex-grow: 1; padding: 20px; }
+        .screen.active { display: flex; }
+
+        /* Typography */
+        h1 { font-size: 2.5rem; text-align: center; margin-bottom: 10px; }
+        h2 { font-size: 1.5rem; border-bottom: 2px solid #dee2e6; padding-bottom: 10px; margin-top: 0; }
+        
+        /* Settings / Menu */
+        .settings-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .settings-group { margin-bottom: 15px; }
+        .settings-group h3 { font-size: 1.2rem; margin: 0 0 10px 0; }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+        .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 1.1rem; cursor: pointer; }
+        .checkbox-label input { width: 20px; height: 20px; cursor: pointer; }
+
+        /* Game Screen */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        #timer { font-size: 3rem; font-weight: bold; font-variant-numeric: tabular-nums; }
+        
+        .word-container { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        #current-word { font-size: 4rem; margin: 0; word-break: break-word; line-height: 1.2; font-weight: 800; transition: color 0.3s; }
+        #word-difficulty { font-size: 1.2rem; margin-top: 10px; font-weight: bold; }
+
+        /* Controls */
+        .controls { display: flex; gap: 15px; justify-content: center; padding-bottom: 20px; flex-wrap: wrap; }
+        .btn { border: none; border-radius: 12px; padding: 15px; font-size: 1.5rem; cursor: pointer; font-weight: bold; flex: 1; min-width: 120px; color: white; transition: opacity 0.2s; }
+        .btn:active { opacity: 0.8; }
+        .btn.small { padding: 8px 15px; font-size: 1.1rem; min-width: auto; flex: none; background-color: var(--secondary); border-radius: 8px; }
+        .btn.full { width: 100%; flex: none; margin-top: 20px; }
+
+        .btn-primary { background-color: var(--primary); }
+        .btn-success { background-color: var(--success); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-warning { background-color: var(--warning); color: black; }
+
+        /* Score Screen */
+        .score-row { display: flex; justify-content: space-between; font-size: 1.3rem; margin-bottom: 10px; padding: 10px; background: white; border-radius: 8px; }
+        .score-total { font-weight: bold; font-size: 1.6rem; border-top: 2px solid var(--text-color); margin-top: 15px; padding-top: 15px; }
+        .score-stolen { color: var(--danger); font-weight: bold; margin-top: 20px; }
+
+        .hidden { display: none !important; }
+        
+        /* Difficulty Colors */
+        .color-easy { color: var(--diff-easy); }
+        .color-medium { color: var(--diff-medium); }
+        .color-hard { color: var(--diff-hard); }
     </style>
 </head>
 <body>
-    <div id="timer">01:00</div>
-    <div id="word-display">לחץ על התחל לטעינת מילים</div>
-    
-    <div id="controls">
-        <button id="btn-start" class="btn">התחל משחק</button>
-        <button id="btn-next" class="btn">הבא (V)</button>
-        <button id="btn-skip" class="btn">דלג (X)</button>
+    <div id="app">
+        <!-- MENU SCREEN -->
+        <div id="menu-screen" class="screen active">
+            <h1>אליאס</h1>
+            
+            <div class="settings-card">
+                <h2>הגדרות משחק</h2>
+                
+                <div class="settings-group">
+                    <h3>קטגוריות</h3>
+                    <div id="categories-container" class="checkbox-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h3>רמות קושי</h3>
+                    <div id="difficulties-container" class="checkbox-grid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-start" class="btn btn-primary full">התחל משחק</button>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="game-screen" class="screen">
+            <div class="header">
+                <div id="timer">01:00</div>
+                <button id="btn-pause" class="btn small">השהה</button>
+            </div>
+            
+            <div class="word-container">
+                <div id="current-word">טוען...</div>
+                <div id="word-difficulty"></div>
+            </div>
+            
+            <div id="game-controls" class="controls">
+                <button id="btn-correct" class="btn btn-success">הבא (V)</button>
+                <button id="btn-skip" class="btn btn-danger">דלג (X)</button>
+                <button id="btn-stolen" class="btn btn-warning full hidden">נחטף!</button>
+                <button id="btn-finish" class="btn btn-primary full hidden">סיים תור</button>
+            </div>
+        </div>
+
+        <!-- SCORE SCREEN -->
+        <div id="score-screen" class="screen">
+            <h1>תוצאות תור</h1>
+            
+            <div class="score-row">
+                <span>מילים שנוחשו (+1):</span>
+                <span id="score-correct" class="color-easy">0</span>
+            </div>
+            <div class="score-row">
+                <span>מילים שדולגו (-1):</span>
+                <span id="score-skipped" class="color-hard">0</span>
+            </div>
+            <div class="score-row score-total">
+                <span>סך הכל לקבוצה:</span>
+                <span id="score-total">0</span>
+            </div>
+            
+            <div class="score-row score-stolen hidden" id="stolen-container">
+                <span>נקודות לקבוצה היריבה (נחטף):</span>
+                <span id="score-stolen">+0</span>
+            </div>
+
+            <button id="btn-restart" class="btn btn-primary full">חזור לתפריט</button>
+        </div>
     </div>
 
     <script>
+        // Data Structure
+        const rawData = {
+            "חיות (דוגמה מוקטנת)": {
+                "קל": ["כלב", "חתול", "אריה"],
+                "בינוני": ["קרנף", "ינשוף", "תמנון"],
+                "קשה": ["קפיברה", "שנבוב", "פנגולין"]
+            },
+            "מושגים כלליים": {
+                "קל": ["שולחן", "כיסא", "מחשב"],
+                "בינוני": ["פילוסופיה", "אדריכלות", "טכנולוגיה"],
+                "קשה": ["אקזיסטנציאליזם", "סינרגיה", "פרדוקס"]
+            }
+        };
+
+        const difficultyColors = {
+            "קל": "color-easy",
+            "בינוני": "color-medium",
+            "קשה": "color-hard"
+        };
+
+        // State variables
         let words = [];
         let currentWordIndex = 0;
-        let timeLeft = 60;
+        let score = { correct: 0, skipped: 0, stolen: 0 };
         let timerInterval;
+        let timeLeft = 60;
+        let isPaused = false;
+        let isTimeUp = false;
 
-        async function initGame() {
-            try {
-                const response = await fetch('words.json');
-                if (!response.ok) throw new Error("File not found");
-                
-                const data = await response.json();
-                
-                // Flatten the JSON into a single array
-                words = [];
-                for (const category in data) {
-                    for (const difficulty in data[category]) {
-                        words = words.concat(data[category][difficulty]);
-                    }
-                }
-                
-                // Shuffle the array
-                for (let i = words.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [words[i], words[j]] = [words[j], words[i]];
-                }
-                
-                currentWordIndex = 0;
-                document.getElementById('word-display').textContent = words[currentWordIndex];
-                
-                // Swap buttons
-                document.getElementById('btn-start').style.display = 'none';
-                document.getElementById('btn-next').style.display = 'inline-block';
-                document.getElementById('btn-skip').style.display = 'inline-block';
-                
-                startTimer();
-                
-            } catch (error) {
-                document.getElementById('word-display').textContent = "שגיאה בטעינת קובץ המילים";
-                console.error(error);
-            }
-        }
+        // DOM Elements
+        const screens = {
+            menu: document.getElementById('menu-screen'),
+            game: document.getElementById('game-screen'),
+            score: document.getElementById('score-screen')
+        };
+        const wordDisplay = document.getElementById('current-word');
+        const difficultyDisplay = document.getElementById('word-difficulty');
+        const timerDisplay = document.getElementById('timer');
+        const btnPause = document.getElementById('btn-pause');
+        const btnCorrect = document.getElementById('btn-correct');
+        const btnSkip = document.getElementById('btn-skip');
+        const btnStolen = document.getElementById('btn-stolen');
+        const btnFinish = document.getElementById('btn-finish');
 
-        function startTimer() {
-            clearInterval(timerInterval);
-            timeLeft = 60;
-            document.getElementById('timer').textContent = "01:00";
+        // Initialization
+        function initSettings() {
+            const categories = Object.keys(rawData);
+            const difficulties = new Set();
             
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                let minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-                let seconds = (timeLeft % 60).toString().padStart(2, '0');
-                document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+            categories.forEach(cat => {
+                Object.keys(rawData[cat]).forEach(diff => difficulties.add(diff));
+            });
 
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('timer').textContent = "00:00";
-                    document.getElementById('btn-next').style.display = 'none';
-                    document.getElementById('btn-skip').style.display = 'none';
-                    // The last word remains on the screen automatically
-                }
-            }, 1000);
+            const catContainer = document.getElementById('categories-container');
+            categories.forEach(cat => {
+                catContainer.innerHTML += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${cat}" class="cat-checkbox" checked>
+                        ${cat}
+                    </label>
+                `;
+            });
+
+            const diffContainer = document.getElementById('difficulties-container');
+            difficulties.forEach(diff => {
+                diffContainer.innerHTML += `
+                    <label class="checkbox-label">
+                        <input type="checkbox" value="${diff}" class="diff-checkbox" checked>
+                        ${diff}
+                    </label>
+                `;
+            });
         }
 
-        function advanceWord() {
-            currentWordIndex++;
-            if (currentWordIndex < words.length && timeLeft > 0) {
-                document.getElementById('word-display').textContent = words[currentWordIndex];
-            } else if (currentWordIndex >= words.length) {
-                document.getElementById('word-display').textContent = "נגמרו המילים!";
-                clearInterval(timerInterval);
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[screenName].classList.add('active');
+        }
+
+        function buildWordArray() {
+            const selectedCats = Array.from(document.querySelectorAll('.cat-checkbox:checked')).map(cb => cb.value);
+            const selectedDiffs = Array.from(document.querySelectorAll('.diff-checkbox:checked')).map(cb => cb.value);
+            
+            words = [];
+            
+            selectedCats.forEach(cat => {
+                selectedDiffs.forEach(diff => {
+                    if (rawData[cat] && rawData[cat][diff]) {
+                        rawData[cat][diff].forEach(text => {
+                            words.push({ text, category: cat, difficulty: diff });
+                        });
+                    }
+                });
+            });
+        }
+
+        function shuffleWords() {
+            for (let i = words.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [words[i], words[j]] = [words[j], words[i]];
             }
         }
 
-        document.getElementById('btn-start').addEventListener('click', initGame);
-        document.getElementById('btn-next').addEventListener('click', advanceWord);
-        document.getElementById('btn-skip').addEventListener('click', advanceWord);
+        // Game Logic
+        function startGame() {
+            buildWordArray();
+            
+            if (words.length === 0) {
+                alert("אנא בחר לפחות קטגוריה אחת ורמת קושי אחת המכילות מילים.");
+                return;
+            }
+
+            shuffleWords();
+            score = { correct: 0, skipped: 0, stolen: 0 };
+            currentWordIndex = 0;
+            timeLeft = 60;
+            isPaused = false;
+            isTimeUp = false;
+
+            // Reset UI
+            btnCorrect.classList.remove('hidden');
+            btnSkip.classList.remove('hidden');
+            btnStolen.classList.add('hidden');
+            btnFinish.classList.add('hidden');
+            btnPause.classList.remove('hidden');
+            btnPause.textContent = 'השהה';
+            wordDisplay.classList.remove('color-easy', 'color-medium', 'color-hard');
+            
+            updateTimerDisplay();
+            switchScreen('game');
+            showNextWord();
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function showNextWord() {
+            if (currentWordIndex >= words.length) {
+                wordDisplay.textContent = "נגמרו המילים!";
+                wordDisplay.className = '';
+                difficultyDisplay.textContent = "";
+                handleTimeUp();
+                return;
+            }
+
+            const current = words[currentWordIndex];
+            wordDisplay.textContent = current.text;
+            difficultyDisplay.textContent = `(${current.difficulty})`;
+            
+            // Apply color based on difficulty
+            wordDisplay.className = difficultyColors[current.difficulty] || '';
+            currentWordIndex++;
+        }
+
+        function updateTimer() {
+            if (isPaused || isTimeUp) return;
+            
+            timeLeft--;
+            updateTimerDisplay();
+            
+            if (timeLeft <= 0) {
+                handleTimeUp();
+            }
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            timerDisplay.textContent = `${m}:${s}`;
+            
+            if (timeLeft <= 10 && timeLeft > 0 && !isTimeUp) {
+                timerDisplay.style.color = 'var(--danger)';
+            } else {
+                timerDisplay.style.color = 'inherit';
+            }
+        }
+
+        function handleTimeUp() {
+            isTimeUp = true;
+            clearInterval(timerInterval);
+            timerDisplay.textContent = "00:00";
+            
+            btnPause.classList.add('hidden');
+            btnCorrect.classList.add('hidden');
+            btnSkip.classList.add('hidden');
+            
+            btnStolen.classList.remove('hidden');
+            btnFinish.classList.remove('hidden');
+        }
+
+        function togglePause() {
+            if (isTimeUp) return;
+            isPaused = !isPaused;
+            btnPause.textContent = isPaused ? 'המשך' : 'השהה';
+            
+            if (isPaused) {
+                wordDisplay.style.visibility = 'hidden';
+                difficultyDisplay.style.visibility = 'hidden';
+            } else {
+                wordDisplay.style.visibility = 'visible';
+                difficultyDisplay.style.visibility = 'visible';
+            }
+        }
+
+        function showScoreScreen() {
+            switchScreen('score');
+            
+            document.getElementById('score-correct').textContent = score.correct;
+            document.getElementById('score-skipped').textContent = score.skipped;
+            
+            const total = score.correct - score.skipped;
+            document.getElementById('score-total').textContent = total;
+            
+            const stolenContainer = document.getElementById('stolen-container');
+            if (score.stolen > 0) {
+                stolenContainer.classList.remove('hidden');
+                document.getElementById('score-stolen').textContent = `+${score.stolen}`;
+            } else {
+                stolenContainer.classList.add('hidden');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('btn-start').addEventListener('click', startGame);
+        document.getElementById('btn-restart').addEventListener('click', () => switchScreen('menu'));
+        btnPause.addEventListener('click', togglePause);
+        
+        btnCorrect.addEventListener('click', () => {
+            if(isPaused || isTimeUp) return;
+            score.correct++;
+            showNextWord();
+        });
+        
+        btnSkip.addEventListener('click', () => {
+            if(isPaused || isTimeUp) return;
+            score.skipped++;
+            showNextWord();
+        });
+
+        btnStolen.addEventListener('click', () => {
+            score.stolen++;
+            showScoreScreen();
+        });
+
+        btnFinish.addEventListener('click', showScoreScreen);
+
+        // Run
+        initSettings();
     </script>
 </body>
 </html>
