@@ -3,36 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>בדיקת קובץ JSON</title>
+    <title>בדיקת טיימר</title>
     <style>
-        body { font-family: monospace; padding: 20px; background: #222; color: #0f0; }
-        #output { white-space: pre-wrap; word-wrap: break-word; border: 1px solid #0f0; padding: 10px; }
+        body { 
+            font-family: system-ui, sans-serif; 
+            text-align: center; 
+            padding-top: 20vh; 
+            background-color: #f4f4f9; 
+            color: #333;
+        }
+        #timer { 
+            font-size: 5rem; 
+            font-weight: bold; 
+            margin-bottom: 30px; 
+            font-variant-numeric: tabular-nums; 
+        }
+        button { 
+            font-size: 1.5rem; 
+            padding: 15px 40px; 
+            cursor: pointer; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 10px; 
+        }
     </style>
 </head>
 <body>
-    <h1>אבחון טעינת נתונים</h1>
-    <div id="output">טוען נתונים...</div>
+    <div id="timer">01:00</div>
+    <button id="start-btn">התחל טיימר</button>
 
     <script>
-        async function testFetch() {
-            const output = document.getElementById('output');
-            try {
-                // This is the line that fails on your hard drive but works on GitHub
-                const response = await fetch('words.json');
-                
-                if (!response.ok) {
-                    throw new Error(`שגיאת שרת: ${response.status}`);
+        let timeLeft = 60;
+        let timerInterval;
+
+        document.getElementById('start-btn').addEventListener('click', function() {
+            clearInterval(timerInterval);
+            timeLeft = 60;
+            document.getElementById('timer').textContent = "01:00";
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                let minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                let seconds = (timeLeft % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timer').textContent = "00:00";
                 }
-
-                const data = await response.json();
-                output.textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                output.style.color = 'red';
-                output.textContent = "שגיאה בטעינת הקובץ: " + error.message;
-            }
-        }
-
-        testFetch();
+            }, 1000);
+        });
     </script>
 </body>
 </html>
