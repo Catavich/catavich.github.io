@@ -1,19 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <style> body { margin: 0; } </style>
-    <script src="//unpkg.com/3d-force-graph"></script>
-  </head>
-  
-  <body>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS Prerequisites Graph</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000011;
+            font-family: sans-serif;
+        }
+        #3d-graph {
+            width: 100vw;
+            height: 100vh;
+        }
+        .graph-tooltip {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            pointer-events: none;
+            direction: rtl; /* Better display for Hebrew text */
+        }
+    </style>
+    <!-- Load 3D Force Graph library -->
+    <script src="https://unpkg.com/3d-force-graph"></script>
+</head>
+<body>
     <div id="3d-graph"></div>
-  
+
     <script>
-      const gData = {
-        nodes: [{ id: 1 }, { id: 2 }, { id: 3 }],
-        links: [{ source: 1, target: 2 }, { source: 2, target: 3 }]
-      };
-  
-      const Graph = ForceGraph3D()
-        (document.getElementById('3d-graph'))
-          .graphData(gData);
+        const Graph = ForceGraph3D()
+            (document.getElementById('3d-graph'))
+            .jsonUrl('graph_data.json')
+            .nodeAutoColorBy('group')
+            .nodeLabel(node => {
+                return `<div class="graph-tooltip">
+                    <strong>${node.id}</strong><br>
+                    ${node.name}<br>
+                    <small>Faculty: ${node.faculty}</small><br>
+                    <small>Points: ${node.points}</small>
+                </div>`;
+            })
+            .linkDirectionalArrowLength(3.5)
+            .linkDirectionalArrowRelPos(1) // Arrow at the end of the link (target)
+            .linkCurvature(0.1); // Slight curve to distinguish bidirectional or overlapping links
     </script>
-  </body>
+</body>
+</html>

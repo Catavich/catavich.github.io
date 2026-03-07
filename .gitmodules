@@ -1,0 +1,3 @@
+[submodule "nodes/fetcher"]
+	path = nodes/fetcher
+	url = https://github.com/michael-maltsev/technion-sap-info-fetcher
