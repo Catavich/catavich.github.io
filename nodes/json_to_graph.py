@@ -1,104 +1,99 @@
 import json
 import argparse
-import os
-from typing import List, Dict, Any
+from collections import deque
 
-def transform_to_force_graph(input_filepath: str, output_filepath: str) -> None:
-    """
-    Reads a JSON file of courses and converts it to a graph data structure
-    for the 3d-force-graph library. Focuses on the Computer Science faculty.
-    """
-    try:
-        with open(input_filepath, 'r', encoding='utf-8') as f:
-            data: List[Dict[str, Any]] = json.load(f)
-    except FileNotFoundError:
-        print(f"Error: Could not find input file at '{os.path.abspath(input_filepath)}'")
-        return
-    except json.JSONDecodeError:
-        print(f"Error: The file '{input_filepath}' contains invalid JSON.")
-        return
+def extract_all_prereqs(prereq_groups):
+    """Flattens the prerequisites list of lists to get all unique course IDs."""
+    prereqs = set()
+    for group in prereq_groups:
+        for course in group:
+            prereqs.add(course)
+    return list(prereqs)
 
-    nodes_dict: Dict[str, Dict[str, Any]] = {}
-    links: List[Dict[str, str]] = []
-    
-    target_faculty = "הפקולטה למדעי המחשב"
+def build_graph(input_file, output_file, faculty=None, graph_type='3d-force'):
+    with open(input_file, 'r', encoding='utf-8') as f:
+        all_courses = json.load(f)
 
-    # First pass: Create nodes for all Computer Science courses
-    for course in data:
-        #if course.get("פקולטה") == target_faculty:
-            course_id = course["מספר מקצוע"]
-            nodes_dict[course_id] = {
-                "id": course_id,
-                "name": course.get("שם מקצוע", ""),
-                "faculty": course.get("פקולטה", ""),
-                "group": target_faculty, # Useful for coloring nodes in the library
-                "points": course.get("נקודות", "0")
-            }
+    course_dict = {str(course.get("מספר מקצוע")): course for course in all_courses if course.get("מספר מקצוע")}
 
-    # Second pass: Create links and find prerequisite courses from other faculties
-    for course in data:
-        target_id = course["מספר מקצוע"]
+    nodes_to_include = set()
+    raw_edges = []
+
+    if faculty:
+        # Find all primary courses for the specific faculty
+        faculty_courses = [cid for cid in course_dict if cid.startswith(faculty)]
         
-        # We only check courses that are in Computer Science as targets
-        if target_id in nodes_dict:
-            prereqs = course.get("מקצועות קדם", [])
-            
-            # Flatten the AND/OR array to get all unique course IDs
-            unique_prereq_ids = set()
-            for or_group in prereqs:
-                for prereq_id in or_group:
-                    unique_prereq_ids.add(prereq_id)
-            
-            for prereq_id in unique_prereq_ids:
-                # Add an edge from the prerequisite to the course
-                links.append({
-                    "source": prereq_id,
-                    "target": target_id
-                })
+        # BFS traversal to find all prerequisites recursively (up to core/root courses)
+        queue = deque(faculty_courses)
+        
+        while queue:
+            current_id = queue.popleft()
+            if current_id in nodes_to_include:
+                continue
                 
-                # If the prerequisite is not yet in the nodes (e.g., a Math course), add it
-                if prereq_id not in nodes_dict:
-                    # Find prerequisite details in the original data
-                    ext_course = next((c for c in data if c["מספר מקצוע"] == prereq_id), None)
-                    
-                    if ext_course:
-                        nodes_dict[prereq_id] = {
-                            "id": prereq_id,
-                            "name": ext_course.get("שם מקצוע", ""),
-                            "faculty": ext_course.get("פקולטה", "Other"),
-                            "group": ext_course.get("פקולטה", "Other"),
-                            "points": ext_course.get("נקודות", "0")
-                        }
-                    else:
-                        # Edge case: Prerequisite course that doesn't appear in the dataset at all
-                        nodes_dict[prereq_id] = {
-                            "id": prereq_id,
-                            "name": "Unknown",
-                            "faculty": "Unknown",
-                            "group": "Unknown",
-                            "points": "0"
-                        }
-
-    # Assemble the final structure required by the library
-    graph_data = {
-        "nodes": list(nodes_dict.values()),
-        "links": links
-    }
-
-    try:
-        with open(output_filepath, 'w', encoding='utf-8') as f:
-            json.dump(graph_data, f, ensure_ascii=False, indent=2)
+            nodes_to_include.add(current_id)
             
-        print(f"Conversion complete. Created {len(graph_data['nodes'])} nodes and {len(graph_data['links'])} links.")
-        print(f"Output saved to: {os.path.abspath(output_filepath)}")
-    except Exception as e:
-        print(f"Error creating output file: {e}")
+            course_data = course_dict.get(current_id)
+            if not course_data:
+                continue
+            
+            prereq_groups = course_data.get("מקצועות קדם", [])
+            flat_prereqs = extract_all_prereqs(prereq_groups)
+            
+            for prereq_id in flat_prereqs:
+                raw_edges.append({"source": prereq_id, "target": current_id})
+                if prereq_id not in nodes_to_include:
+                    queue.append(prereq_id)
+    else:
+        # Include all courses if no faculty is specified
+        nodes_to_include = set(course_dict.keys())
+        for cid, course_data in course_dict.items():
+            prereq_groups = course_data.get("מקצועות קדם", [])
+            flat_prereqs = extract_all_prereqs(prereq_groups)
+            for prereq_id in flat_prereqs:
+                raw_edges.append({"source": prereq_id, "target": cid})
+
+    nodes = []
+    for cid in nodes_to_include:
+        cdata = course_dict.get(cid, {})
+        name = cdata.get("שם מקצוע", cid)
+        group = cid[:2] if len(cid) >= 2 else "unknown"
+        
+        # 3d-force-graph expects id, name, and group is useful for coloring
+        nodes.append({
+            "id": cid,
+            "name": name,
+            "group": group,
+            "val": 1 
+        })
+
+    unique_edges = []
+    seen_edges = set()
+    
+    for edge in raw_edges:
+        # Verify both ends of the edge exist in the filtered subset
+        if edge["source"] in nodes_to_include and edge["target"] in nodes_to_include:
+            edge_tuple = (edge["source"], edge["target"])
+            if edge_tuple not in seen_edges:
+                seen_edges.add(edge_tuple)
+                unique_edges.append({"source": edge["source"], "target": edge["target"]})
+
+    # Output formatting based on graph type
+    if graph_type == '3d-force':
+        graph_data = {"nodes": nodes, "links": unique_edges}
+    else:
+        # Standard generic graph format
+        graph_data = {"nodes": nodes, "edges": unique_edges}
+
+    with open(output_file, 'w', encoding='utf-8') as out_f:
+        json.dump(graph_data, out_f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Converts a courses JSON file to a graph dataset for 3d-force-graph")
-    parser.add_argument("-i", "--input", default="input_courses.json", help="Path to the input courses JSON file (default: input_courses.json)")
-    parser.add_argument("-o", "--output", default="output_graph.json", help="Path to the output file (default: output_graph.json)")
+    parser = argparse.ArgumentParser(description="Generate a JSON graph file from course data.")
+    parser.add_argument("-i", "--input", required=True, help="Path to the combined courses JSON file.")
+    parser.add_argument("-o", "--output", required=True, help="Path to save the output JSON graph file.")
+    parser.add_argument("-f", "--faculty", help="2-digit faculty code (e.g., '23' for CS). Automatically includes prerequisite tree.", default=None)
+    parser.add_argument("-t", "--type", dest="graph_type", choices=['3d-force', 'standard'], default='3d-force', help="Graph structural format (default: 3d-force).")
     
     args = parser.parse_args()
-    
-    transform_to_force_graph(args.input, args.output)
+    build_graph(args.input, args.output, args.faculty, args.graph_type)
