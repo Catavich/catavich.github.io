@@ -40,9 +40,9 @@
         select { margin-left: 10px; padding: 5px; background: #333; color: white; border: 1px solid #555; outline: none; }
     </style>
     
-    <script src="https://unpkg.com/three"></script>
-    <script src="https://unpkg.com/three-spritetext"></script>
-    <script src="https://unpkg.com/3d-force-graph"></script>
+    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three-spritetext@1.6.5/dist/three-spritetext.min.js"></script>
+    <script src="https://unpkg.com/3d-force-graph@1.72.3/dist/3d-force-graph.min.js"></script>
 </head>
 <body>
 
@@ -61,7 +61,7 @@
     <div id="graph-container"></div>
 
     <script>
-        const facultyNames = {}; // Dynamically populated
+        const facultyNames = {}; 
         
         const facultyColors = {
             "01": "#1f77b4", "02": "#aec7e8", "03": "#ff7f0e", "04": "#ffbb78",
@@ -80,62 +80,81 @@
         }
 
         function getColor(group) {
-            // Assign a random distinct color if a new faculty code pops up
             if (!facultyColors[group]) {
                 facultyColors[group] = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
             }
             return facultyColors[group];
         }
 
-        fetch('combined_parsed_courses.json')
-            .then(res => res.json())
-            .then(data => {
-                const faculties = new Set();
-                
-                data.forEach(course => {
-                    const cid = String(course["מספר מקצוע"]);
-                    if (cid && cid !== "undefined") {
-                        courseDict[cid] = course;
-                        if (cid.length >= 2) {
-                            const facCode = cid.substring(0, 2);
-                            faculties.add(facCode);
-                            
-                            // Capture the faculty name from the JSON
-                            if (!facultyNames[facCode] && course["פקולטה"]) {
-                                facultyNames[facCode] = course["פקולטה"];
-                            }
-                        }
+        // Fetch both files simultaneously. 
+        // graph_data.json is used for the correct Hebrew names.
+        // combined_parsed_courses.json is used for the full data and prereq tree.
+        Promise.all([
+            fetch('graph_data.json').then(res => res.json()).catch(() => ({})),
+            fetch('combined_parsed_courses.json').then(res => res.json())
+        ])
+        .then(([graphData, coursesData]) => {
+            
+            // Extract accurate Hebrew faculty names from graph_data.json
+            if (graphData.nodes) {
+                graphData.nodes.forEach(node => {
+                    const facCode = String(node.id).substring(0, 2);
+                    if (node.data && node.data["פקולטה"]) {
+                        facultyNames[facCode] = node.data["פקולטה"];
                     }
                 });
+            }
 
-                const selectElement = document.getElementById('faculty-select');
-                Array.from(faculties).sort().forEach(fac => {
-                    const option = document.createElement('option');
-                    option.value = fac;
-                    option.textContent = getFacultyName(fac);
-                    selectElement.appendChild(option);
+            const faculties = new Set();
+            
+            // Build dictionary from combined_parsed_courses.json
+            coursesData.forEach(course => {
+                const cid = String(course["מספר מקצוע"]);
+                if (cid && cid !== "undefined") {
+                    courseDict[cid] = course;
+                    if (cid.length >= 2) {
+                        const facCode = cid.substring(0, 2);
+                        faculties.add(facCode);
+                        // Fallback in case a faculty wasn't in graph_data.json
+                        if (!facultyNames[facCode] && course["פקולטה"]) {
+                            facultyNames[facCode] = course["פקולטה"];
+                        }
+                    }
+                }
+            });
+
+            // Populate the dropdown menu
+            const selectElement = document.getElementById('faculty-select');
+            Array.from(faculties).sort().forEach(fac => {
+                const option = document.createElement('option');
+                option.value = fac;
+                option.textContent = getFacultyName(fac);
+                selectElement.appendChild(option);
+            });
+
+            // Initialize the 3D Graph
+            Graph = ForceGraph3D()
+                (document.getElementById('graph-container'))
+                .nodeLabel(node => `${node.id}: ${node.name}`)
+                .nodeColor(node => getColor(node.group))
+                .nodeThreeObjectExtend(true)
+                .nodeThreeObject(node => {
+                    const sprite = new SpriteText(node.name);
+                    sprite.color = '#ffffff';
+                    sprite.textHeight = 2;
+                    sprite.position.y = 8;
+                    return sprite;
                 });
 
-                Graph = ForceGraph3D()
-                    (document.getElementById('graph-container'))
-                    .nodeLabel(node => `${node.id}: ${node.name}`)
-                    .nodeColor(node => getColor(node.group))
-                    .nodeThreeObjectExtend(true)
-                    .nodeThreeObject(node => {
-                        const sprite = new SpriteText(node.name);
-                        sprite.color = '#ffffff';
-                        sprite.textHeight = 1.8;
-                        sprite.position.y = 6;
-                        return sprite;
-                    });
+            // Draw the initial state
+            updateGraph('all');
 
-                updateGraph('all');
-
-                selectElement.addEventListener('change', (e) => {
-                    updateGraph(e.target.value);
-                });
-            })
-            .catch(err => console.error("Error loading JSON:", err));
+            // Listen for dropdown changes
+            selectElement.addEventListener('change', (e) => {
+                updateGraph(e.target.value);
+            });
+        })
+        .catch(err => console.error("Error loading JSON files:", err));
 
         function extractAllPrereqs(prereqGroups) {
             const prereqs = new Set();
