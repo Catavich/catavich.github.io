@@ -25,7 +25,7 @@ def transform_to_force_graph(input_filepath: str, output_filepath: str) -> None:
 
     # First pass: Create nodes for all Computer Science courses
     for course in data:
-        if course.get("פקולטה") == target_faculty:
+        #if course.get("פקולטה") == target_faculty:
             course_id = course["מספר מקצוע"]
             nodes_dict[course_id] = {
                 "id": course_id,
