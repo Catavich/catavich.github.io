@@ -61,32 +61,8 @@
     <div id="graph-container"></div>
 
     <script>
-        // Mapping of Technion 2-digit codes to Faculty Names
-        const facultyNames = {
-            "01": "Civil & Environmental Engineering",
-            "02": "Architecture & Town Planning",
-            "03": "Mechanical Engineering",
-            "04": "Electrical & Computer Engineering",
-            "05": "Materials Science & Engineering",
-            "06": "Aerospace Engineering",
-            "07": "Industrial Engineering & Management",
-            "08": "Chemical Engineering",
-            "09": "Medicine",
-            "10": "Materials Engineering",
-            "11": "Mathematics",
-            "12": "Physics",
-            "13": "Chemistry",
-            "14": "Biology",
-            "20": "Data Science",
-            "21": "Education in Science & Technology",
-            "23": "Computer Science",
-            "31": "Biomedical Engineering",
-            "32": "Biotechnology & Food Engineering",
-            "39": "Humanities & Arts",
-            "99": "Extracurricular / Other"
-        };
-
-        // Predefined distinct colors for faculties
+        const facultyNames = {}; // Dynamically populated
+        
         const facultyColors = {
             "01": "#1f77b4", "02": "#aec7e8", "03": "#ff7f0e", "04": "#ffbb78",
             "05": "#2ca02c", "06": "#98df8a", "07": "#d62728", "08": "#ff9896",
@@ -104,7 +80,11 @@
         }
 
         function getColor(group) {
-            return facultyColors[group] || facultyColors["unknown"];
+            // Assign a random distinct color if a new faculty code pops up
+            if (!facultyColors[group]) {
+                facultyColors[group] = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            }
+            return facultyColors[group];
         }
 
         fetch('combined_parsed_courses.json')
@@ -116,7 +96,15 @@
                     const cid = String(course["מספר מקצוע"]);
                     if (cid && cid !== "undefined") {
                         courseDict[cid] = course;
-                        if (cid.length >= 2) faculties.add(cid.substring(0, 2));
+                        if (cid.length >= 2) {
+                            const facCode = cid.substring(0, 2);
+                            faculties.add(facCode);
+                            
+                            // Capture the faculty name from the JSON
+                            if (!facultyNames[facCode] && course["פקולטה"]) {
+                                facultyNames[facCode] = course["פקולטה"];
+                            }
+                        }
                     }
                 });
 
@@ -134,11 +122,10 @@
                     .nodeColor(node => getColor(node.group))
                     .nodeThreeObjectExtend(true)
                     .nodeThreeObject(node => {
-                        // Create a text sprite to hover above the node
                         const sprite = new SpriteText(node.name);
                         sprite.color = '#ffffff';
                         sprite.textHeight = 1.8;
-                        sprite.position.y = 6; // Lift the text slightly above the sphere
+                        sprite.position.y = 6;
                         return sprite;
                     });
 
