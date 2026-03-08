@@ -2,50 +2,158 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CS Prerequisites Graph v0.1</title>
+    <title>Technion Course Graph</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000011;
-            font-family: sans-serif;
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
+        #graph-container { width: 100vw; height: 100vh; }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 10;
         }
-        #3d-graph {
-            width: 100vw;
-            height: 100vh;
-        }
-        .graph-tooltip {
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            pointer-events: none;
-            direction: rtl; /* Better display for Hebrew text */
-        }
+        select, label { font-size: 14px; }
+        select { margin-left: 10px; padding: 5px; background: #333; color: white; border: 1px solid #555; }
     </style>
-    <!-- Load 3D Force Graph library -->
     <script src="https://unpkg.com/3d-force-graph"></script>
 </head>
 <body>
-    <div id="3d-graph"></div>
+
+    <div id="ui-container">
+        <label for="faculty-select">Faculty Filter:</label>
+        <select id="faculty-select">
+            <option value="all">All Faculties</option>
+            </select>
+    </div>
+
+    <div id="graph-container"></div>
 
     <script>
-        const Graph = ForceGraph3D()
-            (document.getElementById('3d-graph'))
-            .jsonUrl('graph_data.json')
-            .nodeAutoColorBy('group')
-            .nodeLabel(node => {
-                return `<div class="graph-tooltip">
-                    <strong>${node.id}</strong><br>
-                    ${node.name}<br>
-                    <small>Faculty: ${node.faculty}</small><br>
-                    <small>Points: ${node.points}</small>
-                </div>`;
+        let courseDict = {};
+        let Graph;
+
+        // Fetch the compiled JSON
+        fetch('combined_parsed_courses.json')
+            .then(res => res.json())
+            .then(data => {
+                // Build dictionary and extract unique faculties
+                const faculties = new Set();
+                
+                data.forEach(course => {
+                    const cid = String(course["מספר מקצוע"]);
+                    if (cid && cid !== "undefined") {
+                        courseDict[cid] = course;
+                        if (cid.length >= 2) faculties.add(cid.substring(0, 2));
+                    }
+                });
+
+                // Populate dropdown
+                const selectElement = document.getElementById('faculty-select');
+                Array.from(faculties).sort().forEach(fac => {
+                    const option = document.createElement('option');
+                    option.value = fac;
+                    option.textContent = `Faculty ${fac}`;
+                    selectElement.appendChild(option);
+                });
+
+                // Initialize Graph
+                Graph = ForceGraph3D()
+                    (document.getElementById('graph-container'))
+                    .nodeLabel(node => `${node.id}: ${node.name}`)
+                    .nodeAutoColorBy('group');
+
+                // Initial render
+                updateGraph('all');
+
+                // Event listener for dropdown
+                selectElement.addEventListener('change', (e) => {
+                    updateGraph(e.target.value);
+                });
             })
-            .linkDirectionalArrowLength(3.5)
-            .linkDirectionalArrowRelPos(1) // Arrow at the end of the link (target)
-            .linkCurvature(0.1); // Slight curve to distinguish bidirectional or overlapping links
+            .catch(err => console.error("Error loading JSON:", err));
+
+        function extractAllPrereqs(prereqGroups) {
+            const prereqs = new Set();
+            if (Array.isArray(prereqGroups)) {
+                prereqGroups.forEach(group => {
+                    if (Array.isArray(group)) {
+                        group.forEach(course => prereqs.add(String(course)));
+                    }
+                });
+            }
+            return Array.from(prereqs);
+        }
+
+        function updateGraph(facultyPrefix) {
+            const nodesToInclude = new Set();
+            const rawEdges = [];
+
+            if (facultyPrefix === 'all') {
+                // Include all
+                for (const [cid, cdata] of Object.entries(courseDict)) {
+                    nodesToInclude.add(cid);
+                    const flatPrereqs = extractAllPrereqs(cdata["מקצועות קדם"]);
+                    flatPrereqs.forEach(prereqId => {
+                        rawEdges.push({ source: prereqId, target: cid });
+                    });
+                }
+            } else {
+                // BFS to include faculty courses and their prerequisites
+                const queue = [];
+                for (const cid of Object.keys(courseDict)) {
+                    if (cid.startsWith(facultyPrefix)) {
+                        queue.push(cid);
+                    }
+                }
+
+                while (queue.length > 0) {
+                    const currentId = queue.shift();
+                    if (nodesToInclude.has(currentId)) continue;
+                    
+                    nodesToInclude.add(currentId);
+                    
+                    const cdata = courseDict[currentId];
+                    if (!cdata) continue;
+
+                    const flatPrereqs = extractAllPrereqs(cdata["מקצועות קדם"]);
+                    flatPrereqs.forEach(prereqId => {
+                        rawEdges.push({ source: prereqId, target: currentId });
+                        if (!nodesToInclude.has(prereqId)) {
+                            queue.push(prereqId);
+                        }
+                    });
+                }
+            }
+
+            // Build format for 3d-force-graph
+            const nodes = [];
+            nodesToInclude.forEach(cid => {
+                const cdata = courseDict[cid] || {};
+                const name = cdata["שם מקצוע"] || cid;
+                const group = cid.length >= 2 ? cid.substring(0, 2) : "unknown";
+                nodes.push({ id: cid, name: name, group: group });
+            });
+
+            // Filter edges to only include those where both nodes exist
+            const links = [];
+            const seenEdges = new Set();
+            
+            rawEdges.forEach(edge => {
+                if (nodesToInclude.has(edge.source) && nodesToInclude.has(edge.target)) {
+                    const edgeKey = `${edge.source}-${edge.target}`;
+                    if (!seenEdges.has(edgeKey)) {
+                        seenEdges.add(edgeKey);
+                        links.push(edge);
+                    }
+                }
+            });
+
+            Graph.graphData({ nodes, links });
+        }
     </script>
 </body>
 </html>
