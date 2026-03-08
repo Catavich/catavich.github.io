@@ -6,19 +6,42 @@
     <style>
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
         #graph-container { width: 100vw; height: 100vh; }
+        
         #ui-container {
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(30, 30, 30, 0.8);
+            background: rgba(30, 30, 30, 0.85);
             padding: 15px;
             border-radius: 8px;
             border: 1px solid #444;
             z-index: 10;
         }
+        
+        #legend-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.85);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 10;
+            max-height: 40vh;
+            overflow-y: auto;
+            min-width: 250px;
+        }
+        
+        .legend-title { font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .legend-item { display: flex; align-items: center; margin-bottom: 6px; font-size: 13px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; border: 1px solid #fff; }
+        
         select, label { font-size: 14px; }
-        select { margin-left: 10px; padding: 5px; background: #333; color: white; border: 1px solid #555; }
+        select { margin-left: 10px; padding: 5px; background: #333; color: white; border: 1px solid #555; outline: none; }
     </style>
+    
+    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/three-spritetext"></script>
     <script src="https://unpkg.com/3d-force-graph"></script>
 </head>
 <body>
@@ -27,20 +50,66 @@
         <label for="faculty-select">Faculty Filter:</label>
         <select id="faculty-select">
             <option value="all">All Faculties</option>
-            </select>
+        </select>
+    </div>
+
+    <div id="legend-container">
+        <div class="legend-title">Faculty Legend</div>
+        <div id="legend-items"></div>
     </div>
 
     <div id="graph-container"></div>
 
     <script>
+        // Mapping of Technion 2-digit codes to Faculty Names
+        const facultyNames = {
+            "01": "Civil & Environmental Engineering",
+            "02": "Architecture & Town Planning",
+            "03": "Mechanical Engineering",
+            "04": "Electrical & Computer Engineering",
+            "05": "Materials Science & Engineering",
+            "06": "Aerospace Engineering",
+            "07": "Industrial Engineering & Management",
+            "08": "Chemical Engineering",
+            "09": "Medicine",
+            "10": "Materials Engineering",
+            "11": "Mathematics",
+            "12": "Physics",
+            "13": "Chemistry",
+            "14": "Biology",
+            "20": "Data Science",
+            "21": "Education in Science & Technology",
+            "23": "Computer Science",
+            "31": "Biomedical Engineering",
+            "32": "Biotechnology & Food Engineering",
+            "39": "Humanities & Arts",
+            "99": "Extracurricular / Other"
+        };
+
+        // Predefined distinct colors for faculties
+        const facultyColors = {
+            "01": "#1f77b4", "02": "#aec7e8", "03": "#ff7f0e", "04": "#ffbb78",
+            "05": "#2ca02c", "06": "#98df8a", "07": "#d62728", "08": "#ff9896",
+            "09": "#9467bd", "10": "#c5b0d5", "11": "#8c564b", "12": "#c49c94",
+            "13": "#e377c2", "14": "#f7b6d2", "20": "#7f7f7f", "21": "#c7c7c7",
+            "23": "#bcbd22", "31": "#dbdb8d", "32": "#17becf", "39": "#9edae5",
+            "unknown": "#ffffff"
+        };
+
         let courseDict = {};
         let Graph;
 
-        // Fetch the compiled JSON
+        function getFacultyName(code) {
+            return facultyNames[code] || `Faculty ${code}`;
+        }
+
+        function getColor(group) {
+            return facultyColors[group] || facultyColors["unknown"];
+        }
+
         fetch('combined_parsed_courses.json')
             .then(res => res.json())
             .then(data => {
-                // Build dictionary and extract unique faculties
                 const faculties = new Set();
                 
                 data.forEach(course => {
@@ -51,25 +120,30 @@
                     }
                 });
 
-                // Populate dropdown
                 const selectElement = document.getElementById('faculty-select');
                 Array.from(faculties).sort().forEach(fac => {
                     const option = document.createElement('option');
                     option.value = fac;
-                    option.textContent = `Faculty ${fac}`;
+                    option.textContent = getFacultyName(fac);
                     selectElement.appendChild(option);
                 });
 
-                // Initialize Graph
                 Graph = ForceGraph3D()
                     (document.getElementById('graph-container'))
                     .nodeLabel(node => `${node.id}: ${node.name}`)
-                    .nodeAutoColorBy('group');
+                    .nodeColor(node => getColor(node.group))
+                    .nodeThreeObjectExtend(true)
+                    .nodeThreeObject(node => {
+                        // Create a text sprite to hover above the node
+                        const sprite = new SpriteText(node.name);
+                        sprite.color = '#ffffff';
+                        sprite.textHeight = 1.8;
+                        sprite.position.y = 6; // Lift the text slightly above the sphere
+                        return sprite;
+                    });
 
-                // Initial render
                 updateGraph('all');
 
-                // Event listener for dropdown
                 selectElement.addEventListener('change', (e) => {
                     updateGraph(e.target.value);
                 });
@@ -88,12 +162,33 @@
             return Array.from(prereqs);
         }
 
+        function buildLegend(activeGroups) {
+            const legendContainer = document.getElementById('legend-items');
+            legendContainer.innerHTML = '';
+            
+            Array.from(activeGroups).sort().forEach(group => {
+                const div = document.createElement('div');
+                div.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = getColor(group);
+                
+                const text = document.createElement('span');
+                text.textContent = getFacultyName(group);
+                
+                div.appendChild(colorBox);
+                div.appendChild(text);
+                legendContainer.appendChild(div);
+            });
+        }
+
         function updateGraph(facultyPrefix) {
             const nodesToInclude = new Set();
             const rawEdges = [];
+            const activeGroups = new Set();
 
             if (facultyPrefix === 'all') {
-                // Include all
                 for (const [cid, cdata] of Object.entries(courseDict)) {
                     nodesToInclude.add(cid);
                     const flatPrereqs = extractAllPrereqs(cdata["מקצועות קדם"]);
@@ -102,7 +197,6 @@
                     });
                 }
             } else {
-                // BFS to include faculty courses and their prerequisites
                 const queue = [];
                 for (const cid of Object.keys(courseDict)) {
                     if (cid.startsWith(facultyPrefix)) {
@@ -129,16 +223,15 @@
                 }
             }
 
-            // Build format for 3d-force-graph
             const nodes = [];
             nodesToInclude.forEach(cid => {
                 const cdata = courseDict[cid] || {};
                 const name = cdata["שם מקצוע"] || cid;
                 const group = cid.length >= 2 ? cid.substring(0, 2) : "unknown";
+                activeGroups.add(group);
                 nodes.push({ id: cid, name: name, group: group });
             });
 
-            // Filter edges to only include those where both nodes exist
             const links = [];
             const seenEdges = new Set();
             
@@ -152,6 +245,7 @@
                 }
             });
 
+            buildLegend(activeGroups);
             Graph.graphData({ nodes, links });
         }
     </script>
