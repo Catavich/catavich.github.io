@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Technion Course Graph</title>
+    <title>Technion Course Graph - 2D</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #000; color: #fff; }
-        #graph-container { width: 100vw; height: 100vh; }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #111; color: #fff; }
+        #graph-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; }
         
         #ui-container {
             position: absolute;
@@ -38,22 +38,37 @@
         
         select, label { font-size: 14px; }
         select { margin-left: 10px; padding: 5px; background: #333; color: white; border: 1px solid #555; outline: none; }
+
+        /* Status message overlay for debugging */
+        #status-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px 30px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            font-size: 18px;
+            z-index: 9999;
+            text-align: center;
+        }
     </style>
     
-    <script src="https://unpkg.com/three@0.147.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three-spritetext@1.6.5/dist/three-spritetext.min.js"></script>
-    <script src="https://unpkg.com/3d-force-graph@1.72.3/dist/3d-force-graph.min.js"></script>
+    <script src="https://unpkg.com/force-graph@1.43.5/dist/force-graph.min.js"></script>
 </head>
 <body>
 
-    <div id="ui-container">
+    <div id="status-overlay">Loading data...</div>
+
+    <div id="ui-container" style="display: none;">
         <label for="faculty-select">Faculty Filter:</label>
         <select id="faculty-select">
             <option value="all">All Faculties</option>
         </select>
+        <div id="node-count" style="margin-top: 10px; font-size: 12px; color: #aaa;"></div>
     </div>
 
-    <div id="legend-container">
+    <div id="legend-container" style="display: none;">
         <div class="legend-title">Faculty Legend</div>
         <div id="legend-items"></div>
     </div>
@@ -75,6 +90,39 @@
         let courseDict = {};
         let Graph;
 
+        // --- FALLBACK DATA ---
+        const fallbackGraphData = {
+            nodes: [
+                { id: "014003", data: { "פקולטה": "מתמטיקה" } },
+                { id: "044102", data: { "פקולטה": "הנדסת חשמל ומחשבים" } },
+                { id: "094411", data: { "פקולטה": "הנדסת תעשייה וניהול" } },
+                { id: "234122", data: { "פקולטה": "מדעי המחשב" } }
+            ]
+        };
+
+        const fallbackCoursesData = [
+            { "מספר מקצוע": "014003", "שם מקצוע": "Algebra A", "פקולטה": "מתמטיקה", "מקצועות קדם": [] },
+            { "מספר מקצוע": "014004", "שם מקצוע": "Calculus 1M", "פקולטה": "מתמטיקה", "מקצועות קדם": [] },
+            { "מספר מקצוע": "044102", "שם מקצוע": "Intro to CS", "פקולטה": "הנדסת חשמל ומחשבים", "מקצועות קדם": [] },
+            { "מספר מקצוע": "046209", "שם מקצוע": "Data Structures", "פקולטה": "הנדסת חשמל ומחשבים", "מקצועות קדם": [["044102"]] },
+            { "מספר מקצוע": "234122", "שם מקצוע": "Systems Programming", "פקולטה": "מדעי המחשב", "מקצועות קדם": [["044102"]] },
+            { "מספר מקצוע": "234247", "שם מקצוע": "Algorithms 1", "פקולטה": "מדעי המחשב", "מקצועות קדם": [["046209"]] },
+            { "מספר מקצוע": "094411", "שם מקצוע": "Probability (IE&M)", "פקולטה": "הנדסת תעשייה וניהול", "מקצועות קדם": [["014004"]] },
+            { "מספר מקצוע": "046200", "שם מקצוע": "Image Processing", "פקולטה": "הנדסת חשמל ומחשבים", "מקצועות קדם": ["094411", "044102"] } // Mixed formats supported
+        ];
+        // ---------------------
+
+        function setStatus(msg, isError = false) {
+            const overlay = document.getElementById('status-overlay');
+            overlay.innerHTML = msg;
+            overlay.style.display = 'block';
+            if (isError) overlay.style.color = '#ff6b6b';
+        }
+
+        function hideStatus() {
+            document.getElementById('status-overlay').style.display = 'none';
+        }
+
         function getFacultyName(code) {
             return facultyNames[code] || `Faculty ${code}`;
         }
@@ -86,82 +134,143 @@
             return facultyColors[group];
         }
 
-        // Fetch both files simultaneously. 
-        // graph_data.json is used for the correct Hebrew names.
-        // combined_parsed_courses.json is used for the full data and prereq tree.
-        Promise.all([
-            fetch('graph_data.json').then(res => res.json()).catch(() => ({})),
-            fetch('combined_parsed_courses.json').then(res => res.json())
-        ])
-        .then(([graphData, coursesData]) => {
-            
-            // Extract accurate Hebrew faculty names from graph_data.json
-            if (graphData.nodes) {
-                graphData.nodes.forEach(node => {
-                    const facCode = String(node.id).substring(0, 2);
-                    if (node.data && node.data["פקולטה"]) {
-                        facultyNames[facCode] = node.data["פקולטה"];
-                    }
-                });
-            }
+        async function initApp() {
+            try {
+                let graphData = fallbackGraphData;
+                let coursesData = fallbackCoursesData;
 
-            const faculties = new Set();
-            
-            // Build dictionary from combined_parsed_courses.json
-            coursesData.forEach(course => {
-                const cid = String(course["מספר מקצוע"]);
-                if (cid && cid !== "undefined") {
-                    courseDict[cid] = course;
-                    if (cid.length >= 2) {
-                        const facCode = cid.substring(0, 2);
-                        faculties.add(facCode);
-                        // Fallback in case a faculty wasn't in graph_data.json
-                        if (!facultyNames[facCode] && course["פקולטה"]) {
-                            facultyNames[facCode] = course["פקולטה"];
+                // Safely fetch graph_data.json
+                try {
+                    const res = await fetch('graph_data.json');
+                    if (res.ok) {
+                        const text = await res.text();
+                        const parsed = JSON.parse(text);
+                        if (parsed && parsed.nodes) graphData = parsed;
+                    }
+                } catch(e) { console.warn("Using fallback graph_data"); }
+
+                // Safely fetch combined_parsed_courses.json
+                try {
+                    const res = await fetch('combined_parsed_courses.json');
+                    if (res.ok) {
+                        const text = await res.text();
+                        const parsed = JSON.parse(text);
+                        // Make sure it's an array, or if it's an object containing an array, extract it
+                        if (Array.isArray(parsed)) {
+                            coursesData = parsed;
+                        } else if (parsed && typeof parsed === 'object') {
+                            // Find the first array property in the object just in case
+                            const firstArray = Object.values(parsed).find(val => Array.isArray(val));
+                            if (firstArray) coursesData = firstArray;
                         }
                     }
+                } catch(e) { console.warn("Using fallback coursesData"); }
+
+                // Extract accurate Hebrew faculty names from graph_data.json
+                if (graphData && graphData.nodes) {
+                    graphData.nodes.forEach(node => {
+                        const facCode = String(node.id || "").substring(0, 2);
+                        if (facCode && node.data && node.data["פקולטה"]) {
+                            facultyNames[facCode] = node.data["פקולטה"];
+                        }
+                    });
                 }
-            });
 
-            // Populate the dropdown menu
-            const selectElement = document.getElementById('faculty-select');
-            Array.from(faculties).sort().forEach(fac => {
-                const option = document.createElement('option');
-                option.value = fac;
-                option.textContent = getFacultyName(fac);
-                selectElement.appendChild(option);
-            });
+                const faculties = new Set();
+                
+                // Build dictionary from coursesData
+                if (Array.isArray(coursesData)) {
+                    coursesData.forEach(course => {
+                        // Accept different possible keys for course number
+                        const cidRaw = course["מספר מקצוע"] || course["course_id"] || course["id"];
+                        if (!cidRaw) return; // Skip if no ID
 
-            // Initialize the 3D Graph
-            Graph = ForceGraph3D()
-                (document.getElementById('graph-container'))
-                .nodeLabel(node => `${node.id}: ${node.name}`)
-                .nodeColor(node => getColor(node.group))
-                .nodeThreeObjectExtend(true)
-                .nodeThreeObject(node => {
-                    const sprite = new SpriteText(node.name);
-                    sprite.color = '#ffffff';
-                    sprite.textHeight = 2;
-                    sprite.position.y = 8;
-                    return sprite;
+                        const cid = String(cidRaw);
+                        if (cid !== "undefined" && cid.trim() !== "") {
+                            courseDict[cid] = course;
+                            if (cid.length >= 2) {
+                                const facCode = cid.substring(0, 2);
+                                faculties.add(facCode);
+                                if (!facultyNames[facCode] && course["פקולטה"]) {
+                                    facultyNames[facCode] = course["פקולטה"];
+                                }
+                            }
+                        }
+                    });
+                }
+
+                if (Object.keys(courseDict).length === 0) {
+                    throw new Error("No valid courses found in data. Verify the JSON keys.");
+                }
+
+                // Populate the dropdown menu
+                const selectElement = document.getElementById('faculty-select');
+                Array.from(faculties).sort().forEach(fac => {
+                    const option = document.createElement('option');
+                    option.value = fac;
+                    option.textContent = getFacultyName(fac);
+                    selectElement.appendChild(option);
                 });
 
-            // Draw the initial state
-            updateGraph('all');
+                // Initialize the 2D Graph
+                Graph = ForceGraph()(document.getElementById('graph-container'))
+                    .nodeLabel(node => `${node.id}: ${node.name}`)
+                    .nodeColor(node => getColor(node.group))
+                    .linkColor(() => 'rgba(255, 255, 255, 0.4)')
+                    .linkWidth(1.5)
+                    .linkDirectionalArrowLength(4)
+                    .linkDirectionalArrowRelPos(1)
+                    .nodeCanvasObjectMode(() => 'after')
+                    .nodeCanvasObject((node, ctx, globalScale) => {
+                        if (globalScale > 1.2) {
+                            const label = `${node.id}: ${node.name}`;
+                            const fontSize = 12 / globalScale;
+                            ctx.font = `${fontSize}px Sans-Serif`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            
+                            ctx.lineWidth = 2 / globalScale;
+                            ctx.strokeStyle = '#111111';
+                            ctx.strokeText(label, node.x, node.y + 6);
+                            
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillText(label, node.x, node.y + 6);
+                        }
+                    });
 
-            // Listen for dropdown changes
-            selectElement.addEventListener('change', (e) => {
-                updateGraph(e.target.value);
-            });
-        })
-        .catch(err => console.error("Error loading JSON files:", err));
+                // Show UI now that data is ready
+                document.getElementById('ui-container').style.display = 'block';
+                document.getElementById('legend-container').style.display = 'block';
+                hideStatus();
 
+                // Draw the initial state
+                updateGraph('all');
+
+                // Handle window resize dynamically
+                window.addEventListener('resize', () => {
+                    Graph.width(window.innerWidth).height(window.innerHeight);
+                });
+
+                // Listen for dropdown changes
+                selectElement.addEventListener('change', (e) => {
+                    updateGraph(e.target.value);
+                });
+
+            } catch (err) {
+                console.error(err);
+                setStatus(`Failed to initialize:<br/>${err.message}`, true);
+            }
+        }
+
+        // Improved prerequisite extraction to handle both [["id"]] and ["id"] formats
         function extractAllPrereqs(prereqGroups) {
             const prereqs = new Set();
             if (Array.isArray(prereqGroups)) {
                 prereqGroups.forEach(group => {
                     if (Array.isArray(group)) {
                         group.forEach(course => prereqs.add(String(course)));
+                    } else if (group && typeof group !== 'object') {
+                        prereqs.add(String(group));
                     }
                 });
             }
@@ -232,7 +341,8 @@
             const nodes = [];
             nodesToInclude.forEach(cid => {
                 const cdata = courseDict[cid] || {};
-                const name = cdata["שם מקצוע"] || cid;
+                // Fallback to different name keys just in case
+                const name = cdata["שם מקצוע"] || cdata["name"] || cid;
                 const group = cid.length >= 2 ? cid.substring(0, 2) : "unknown";
                 activeGroups.add(group);
                 nodes.push({ id: cid, name: name, group: group });
@@ -251,9 +361,20 @@
                 }
             });
 
+            if (nodes.length === 0) {
+                setStatus("No nodes to display.", true);
+            } else {
+                hideStatus();
+            }
+
+            document.getElementById('node-count').innerText = `Displaying ${nodes.length} courses`;
+
             buildLegend(activeGroups);
             Graph.graphData({ nodes, links });
         }
+
+        // Start everything
+        initApp();
     </script>
 </body>
 </html>
